@@ -4,6 +4,37 @@ VaultX is a secure, full-stack secrets manager application built with the MERN s
 
 This repository contains the complete source code for both the frontend client and the backend server.
 
+## 📸 Screenshots
+
+Here are a few screenshots showcasing the VaultX interface:
+
+- **Login Page**  
+  ![Login Page](./Screenshot%202025-10-09%20101037.png)
+
+- **Dashboard**  
+  ![Dashboard](./Screenshot%202025-10-09%20101054.png)
+
+- **Secrets List**  
+  ![Secrets List](./Screenshot%202025-10-09%20101114.png)
+
+- **Add New Secret**  
+  ![Add New Secret](./Screenshot%202025-10-09%20101138.png)
+
+- **Secret Details View**  
+  ![Secret Details View](./Screenshot%202025-10-09%20101204.png)
+
+- **Activity Logs**  
+  ![Activity Logs](./Screenshot%202025-10-09%20101220.png)
+
+- **2FA Setup Page**  
+  ![2FA Setup Page](./Screenshot%202025-10-09%20101336.png)
+
+- **Settings Page**  
+  ![Settings Page](./Screenshot%202025-10-09%20101352.png)
+
+- **Logout Confirmation**  
+  ![Logout Confirmation](./Screenshot%202025-10-09%20101417.png)
+
 ## ✨ Core Features
 
 - **Secure Authentication**: JWT-based authentication and a full 2FA (Two-Factor Authentication) implementation.
