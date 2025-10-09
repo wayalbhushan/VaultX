@@ -11,29 +11,31 @@ Here are a few screenshots showcasing the VaultX interface:
 - **Landing Page**  
   ![Login Page](./Screenshot%202025-10-09%20101037.png)
 
-- **Dashboard**  
+- **Learn More**  
   ![Dashboard](./Screenshot%202025-10-09%20101054.png)
 
-- **Secrets List**  
+- **Login Page**  
   ![Secrets List](./Screenshot%202025-10-09%20101114.png)
 
-- **Add New Secret**  
+- **Two Factor Authentication**  
   ![Add New Secret](./Screenshot%202025-10-09%20101138.png)
 
-- **Secret Details View**  
+- **Dashboard**  
   ![Secret Details View](./Screenshot%202025-10-09%20101204.png)
 
-- **Activity Logs**  
+- **Stored Secrets**  
   ![Activity Logs](./Screenshot%202025-10-09%20101220.png)
 
-- **2FA Setup Page**  
+- **Veiwing Stored Secret**  
   ![2FA Setup Page](./Screenshot%202025-10-09%20101336.png)
 
-- **Settings Page**  
+- **Activity Log**  
   ![Settings Page](./Screenshot%202025-10-09%20101352.png)
 
-- **Logout Confirmation**  
+- **2FA SetUP and Change Password**  
   ![Logout Confirmation](./Screenshot%202025-10-09%20101417.png)
+  - **Secrets Stored Encrypted in Database**  
+  ![Logout Confirmation](./Screenshot%202025-10-09%20101744.png)
 
 ## ✨ Core Features
 
