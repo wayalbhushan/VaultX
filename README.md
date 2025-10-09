@@ -8,7 +8,7 @@ This repository contains the complete source code for both the frontend client a
 
 Here are a few screenshots showcasing the VaultX interface:
 
-- **Login Page**  
+- **Landing Page**  
   ![Login Page](./Screenshot%202025-10-09%20101037.png)
 
 - **Dashboard**  
