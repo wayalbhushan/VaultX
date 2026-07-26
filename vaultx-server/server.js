@@ -32,7 +32,30 @@ app.use(
   })
 );
 
-app.use(helmet());
+// Advanced Security Headers via Helmet
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+    referrerPolicy: { policy: "same-origin" },
+    frameguard: { action: "deny" },
+    noSniff: true,
+  })
+);
+
 app.use(cookieParser());
 app.use(express.json());
 
