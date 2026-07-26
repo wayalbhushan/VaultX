@@ -1,14 +1,36 @@
+import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
+import API from "../utils/api";
 
 export default function ProtectedRoute() {
-  const token = localStorage.getItem("vaultxToken");
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
   const location = useLocation();
 
-  // No token? Kick them to Get Started (you can change this route)
-  if (!token) {
+  useEffect(() => {
+    let isMounted = true;
+    API.get("/user/me")
+      .then(() => {
+        if (isMounted) setIsAuthenticated(true);
+      })
+      .catch(() => {
+        if (isMounted) setIsAuthenticated(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [location.pathname]);
+
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center text-green-400 font-mono">
+        <p className="animate-pulse">Verifying secure session...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
     return <Navigate to="/get-started" replace state={{ from: location }} />;
   }
 
-  // Token exists? Render the protected branch
   return <Outlet />;
 }
