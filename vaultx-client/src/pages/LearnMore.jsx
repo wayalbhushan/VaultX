@@ -1,106 +1,127 @@
 import { Link } from "react-router-dom";
-import { ShieldCheck, KeyRound, Fingerprint, History, Zap, Lock } from "lucide-react";
+import MatrixBackground from "../components/MatrixBackground";
+import {
+  ShieldCheck,
+  KeyRound,
+  Fingerprint,
+  History,
+  ArrowRight,
+  Database,
+  Cpu,
+  FileCheck,
+  Lock,
+  Terminal,
+} from "lucide-react";
 
 export default function LearnMore() {
-  const securityFeatures = [
+  const securityPillars = [
     {
-      icon: <ShieldCheck size={32} className="text-green-400" />,
-      title: "AES-256 Encryption",
-      description: "Your data is encrypted at rest using the Advanced Encryption Standard (AES-256), the same grade of security trusted by governments and financial institutions worldwide."
+      icon: <ShieldCheck size={26} className="text-emerald-400" />,
+      title: "AES-256-GCM AEAD Encryption",
+      description:
+        "Every payload is encrypted at rest using AES-256 in Galois/Counter Mode (GCM). Unlike CBC, GCM includes an explicit 16-byte authentication tag that prevents ciphertext tampering and bit-flipping attacks.",
     },
     {
-      icon: <KeyRound size={32} className="text-green-400" />,
-      title: "JWT Authentication",
-      description: "Access to your vault is secured using JSON Web Tokens (JWT), ensuring that every request to your data is verified and authenticated, preventing unauthorized access."
+      icon: <KeyRound size={26} className="text-emerald-400" />,
+      title: "HTTP-Only & SameSite=Strict Cookies",
+      description:
+        "Access and Refresh tokens are stored in isolated HTTP-Only cookies with SameSite=Strict flags, effectively eliminating Cross-Site Scripting (XSS) token extraction vulnerabilities.",
     },
     {
-      icon: <Fingerprint size={32} className="text-green-400" />,
-      title: "Two-Factor Authentication",
-      description: "Add an extra layer of security to your account with 2FA. By requiring a second verification step, you can protect your vault even if your password is compromised."
-    }
-  ];
-
-  const keyFeatures = [
-    { icon: <Lock className="text-green-300" />, text: "Securely store secrets, keys, and passwords." },
-    { icon: <Zap className="text-green-300" />, text: "Generate strong, random passwords instantly." },
-    { icon: <History className="text-green-300" />, text: "Track all actions with a detailed activity log." },
+      icon: <Fingerprint size={26} className="text-emerald-400" />,
+      title: "Encrypted TOTP 2FA Verification",
+      description:
+        "Mandatory two-factor step-up authentication using standard TOTP authenticator apps. 2FA secrets are encrypted at rest in MongoDB using server master keys.",
+    },
+    {
+      icon: <History size={26} className="text-cyan-400" />,
+      title: "Cryptographic Audit Ledger",
+      description:
+        "Audit log records form a cryptographic SHA-256 hash chain (hash = SHA256(userId + action + timestamp + previousHash)). ORM hooks block any update or delete operations on log documents.",
+    },
+    {
+      icon: <Database size={26} className="text-emerald-400" />,
+      title: "Strict Multi-Field Query Isolation",
+      description:
+        "All database CRUD operations filter strictly by both secret ID AND authenticated user ID ({ _id, userId }). Requests for unauthorized resources return 404 Not Found to block IDOR probing.",
+    },
+    {
+      icon: <FileCheck size={26} className="text-cyan-400" />,
+      title: "PBKDF2 Encrypted Backup Exports",
+      description:
+        "Export your vault into a standalone .vaultx backup container encrypted via 100,000 PBKDF2 iterations + AES-256-GCM using your custom export passphrase.",
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-950 text-green-400 font-mono overflow-x-hidden">
-      {/* Animated background grid */}
-      <div className="animated-bg"></div>
-      
-      <div className="relative z-10 max-w-5xl mx-auto px-6 py-20">
-        {/* Hero Section */}
-        <div className="text-center mb-20">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 drop-shadow-[0_0_15px_rgba(0,255,0,0.8)] animate-fade-in-down">
-            The <span className="text-green-500">Security</span> Behind VaultX
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans relative overflow-hidden">
+      {/* Matrix Digital Rain Background */}
+      <MatrixBackground opacity={0.05} speed={50} />
+
+      {/* Glow Orbs */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-gradient-to-b from-emerald-500/10 via-cyan-500/5 to-transparent blur-[140px] pointer-events-none z-0" />
+
+      <main className="pt-32 pb-20 px-6 max-w-7xl mx-auto relative z-10 space-y-16">
+        {/* Header */}
+        <div className="text-center max-w-3xl mx-auto space-y-4">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 border border-emerald-500/30 text-xs font-mono text-emerald-400 shadow-sm">
+            <Cpu size={14} className="text-emerald-400" />
+            <span>CRYPTOGRAPHIC ARCHITECTURE SPECIFICATION</span>
+          </div>
+
+          <h1 className="text-4xl sm:text-5xl font-bold font-mono tracking-tight text-white leading-tight">
+            Security & Cryptographic Model <br />
+            <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
+              Behind VaultX.
+            </span>
           </h1>
-          <p className="max-w-3xl mx-auto text-lg text-green-300 leading-relaxed animate-fade-in-down animation-delay-300">
-            VaultX isn't just another secrets manager. It's a fortress for your digital life, built on a foundation of proven, enterprise-grade security principles. Your privacy is not a feature—it's the entire mission.
+
+          <p className="text-slate-300 text-sm sm:text-base leading-relaxed font-sans">
+            VaultX is engineered around defense-in-depth security principles. Your credentials are never stored in plaintext, and all sensitive endpoints enforce strict authorization and input verification.
           </p>
         </div>
 
-        {/* Security Model Section */}
-        <div className="mb-20">
-            <h2 className="text-4xl font-semibold text-center mb-10 text-green-400 animate-fade-in-up">Our Security Model</h2>
-            <div className="grid md:grid-cols-3 gap-8">
-                {securityFeatures.map((feature, index) => (
-                    <div key={index} className="bg-gray-900/80 border border-green-500/50 rounded-lg p-6 shadow-lg hover:shadow-green-500/30 transition-shadow duration-300 animate-fade-in-up" style={{ animationDelay: `${index * 200 + 400}ms` }}>
-                        <div className="mb-4">{feature.icon}</div>
-                        <h3 className="text-2xl font-bold text-green-300 mb-2">{feature.title}</h3>
-                        <p className="text-green-400/80">{feature.description}</p>
-                    </div>
-                ))}
+        {/* Security Pillars Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {securityPillars.map((pillar, i) => (
+            <div
+              key={i}
+              className="bg-slate-900/80 border border-slate-800/90 hover:border-emerald-500/50 rounded-xl p-6 shadow-sm flex flex-col justify-between group hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all duration-300"
+            >
+              <div>
+                <div className="w-11 h-11 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
+                  {pillar.icon}
+                </div>
+                <h3 className="text-base font-bold text-slate-100 group-hover:text-emerald-400 mb-2 font-mono transition-colors">
+                  {pillar.title}
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed font-sans">{pillar.description}</p>
+              </div>
             </div>
+          ))}
         </div>
 
-        {/* Key Features & CTA */}
-        <div className="text-center">
-            <h2 className="text-4xl font-semibold mb-6 text-green-400 animate-fade-in-up">Key Features at a Glance</h2>
-            <ul className="inline-block text-left space-y-3 text-lg text-green-300 mb-10 animate-fade-in-up animation-delay-200">
-                {keyFeatures.map((feature, index) => (
-                    <li key={index} className="flex items-center gap-3">
-                        {feature.icon}
-                        <span>{feature.text}</span>
-                    </li>
-                ))}
-            </ul>
-            <div className="animate-fade-in-up animation-delay-400">
-                <Link to="/get-started" className="inline-block bg-green-500 text-black px-10 py-4 rounded-lg font-semibold hover:bg-green-400 transition-all duration-300 shadow-[0_0_15px_rgba(0,255,0,0.6)] hover:shadow-[0_0_25px_rgba(0,255,0,0.9)]">
-                    Secure Your Data Now
-                </Link>
-            </div>
-        </div>
-      </div>
+        {/* Call to Action Banner */}
+        <div className="bg-slate-900/90 border border-emerald-500/30 rounded-2xl p-8 md:p-12 text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl">
+          <div>
+            <h2 className="text-2xl font-bold font-mono text-white mb-2">
+              Start Protecting Your Secrets Today
+            </h2>
+            <p className="text-xs text-slate-300 font-sans">
+              Deploy your encrypted vault in under a minute with mandatory 2FA and GCM encryption.
+            </p>
+          </div>
 
-      <style>{`
-        .animated-bg {
-          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-          background-image: linear-gradient(to right, rgba(0, 255, 0, 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 255, 0, 0.08) 1px, transparent 1px);
-          background-size: 50px 50px;
-          animation: move-bg 30s linear infinite;
-          z-index: 0;
-        }
-        @keyframes move-bg {
-          from { background-position: 0 0; }
-          to { background-position: 100px 100px; }
-        }
-        @keyframes fade-in-down {
-          from { opacity: 0; transform: translateY(-20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-down { animation: fade-in-down 0.8s ease-out forwards; opacity: 0; }
-        @keyframes fade-in-up {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-up { animation: fade-in-up 0.8s ease-out forwards; opacity: 0; }
-        .animation-delay-200 { animation-delay: 0.2s; }
-        .animation-delay-300 { animation-delay: 0.3s; }
-        .animation-delay-400 { animation-delay: 0.4s; }
-      `}</style>
+          <Link
+            to="/get-started"
+            className="px-7 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-bold text-xs uppercase tracking-wider rounded-lg shadow-[0_0_20px_rgba(16,185,129,0.4)] shrink-0 transition-all active:scale-[0.98] flex items-center gap-2"
+          >
+            <Lock size={15} />
+            <span>Launch Cyber Vault</span>
+            <ArrowRight size={16} />
+          </Link>
+        </div>
+      </main>
     </div>
   );
 }

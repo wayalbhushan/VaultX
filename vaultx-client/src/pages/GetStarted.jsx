@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import API from "../utils/api";
-import { LoaderCircle, Shield, Lock, Mail, User, KeyRound, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
+import MatrixBackground from "../components/MatrixBackground";
+import { LoaderCircle, Shield, Lock, Mail, User, KeyRound, AlertCircle, CheckCircle2, ArrowRight, Terminal } from "lucide-react";
 
 export default function GetStarted() {
   const navigate = useNavigate();
@@ -125,22 +126,24 @@ export default function GetStarted() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center px-4 pt-28 pb-16 relative overflow-hidden font-sans">
+      {/* Matrix Background */}
+      <MatrixBackground opacity={0.05} speed={50} />
+
       {/* Background ambient lighting */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-80 h-80 bg-teal-500/10 blur-[100px] rounded-full pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none z-0" />
 
       {/* Header Logo */}
       <div className="mb-8 text-center relative z-10">
-        <Link to="/" className="inline-flex items-center gap-3 group">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 shadow-lg shadow-emerald-500/25 group-hover:scale-105 transition-transform">
-            <Shield size={26} className="stroke-[2.5]" />
+        <div className="inline-flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-lg bg-slate-900 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+            <Shield size={22} className="stroke-[2.2]" />
           </div>
-          <span className="text-3xl font-extrabold tracking-tight font-display text-white">
-            VaultX
+          <span className="text-2xl font-bold font-mono tracking-tight text-white">
+            VaultX Authentication
           </span>
-        </Link>
-        <p className="mt-2 text-sm text-slate-400 max-w-sm mx-auto">
+        </div>
+        <p className="mt-2 text-xs text-slate-400 max-w-sm mx-auto font-sans">
           {show2fa
             ? "Enter your 6-digit authenticator security code"
             : isLogin
@@ -150,31 +153,31 @@ export default function GetStarted() {
       </div>
 
       {/* Auth Card Container */}
-      <div className="w-full max-w-md bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl relative z-10">
+      <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-2xl border border-emerald-500/30 rounded-xl p-8 shadow-[0_0_40px_rgba(0,0,0,0.8)] relative z-10">
         {/* Toggle Switch (Hidden during 2FA) */}
         {!show2fa && (
-          <div className="grid grid-cols-2 bg-slate-950 p-1 rounded-xl mb-6 border border-slate-800/80">
+          <div className="grid grid-cols-2 bg-slate-950 p-1 rounded-lg mb-6 border border-slate-800 font-mono">
             <button
               onClick={() => {
                 setIsLogin(true);
                 setMessage("");
               }}
-              className={`py-2 text-xs font-semibold rounded-lg transition-all ${
+              className={`py-2 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${
                 isLogin
-                  ? "bg-slate-800 text-emerald-400 shadow border border-slate-700/50"
+                  ? "bg-slate-900 text-emerald-400 border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
                   : "text-slate-400 hover:text-slate-200"
               }`}
             >
-              Log In
+              Sign In
             </button>
             <button
               onClick={() => {
                 setIsLogin(false);
                 setMessage("");
               }}
-              className={`py-2 text-xs font-semibold rounded-lg transition-all ${
+              className={`py-2 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${
                 !isLogin
-                  ? "bg-slate-800 text-emerald-400 shadow border border-slate-700/50"
+                  ? "bg-slate-900 text-emerald-400 border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
                   : "text-slate-400 hover:text-slate-200"
               }`}
             >
@@ -187,7 +190,7 @@ export default function GetStarted() {
         {message && (
           <div
             role="alert"
-            className={`mb-6 p-3.5 rounded-xl border text-xs font-medium flex items-start gap-2.5 ${
+            className={`mb-6 p-3.5 rounded-lg border text-xs font-medium flex items-start gap-2.5 font-sans ${
               messageType === "error"
                 ? "bg-rose-500/10 border-rose-500/30 text-rose-300"
                 : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
@@ -206,10 +209,10 @@ export default function GetStarted() {
         {show2fa ? (
           <form onSubmit={handle2faValidation} className="space-y-5">
             <div className="text-center space-y-2">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 mx-auto flex items-center justify-center">
+              <div className="w-12 h-12 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 mx-auto flex items-center justify-center shadow-[0_0_12px_rgba(16,185,129,0.2)]">
                 <KeyRound size={22} />
               </div>
-              <p className="text-xs text-slate-400">Two-Factor Authentication Enforced</p>
+              <p className="text-xs font-mono text-emerald-400">TOTP TWO-FACTOR AUTH ENFORCED</p>
             </div>
             <div>
               <input
@@ -218,7 +221,7 @@ export default function GetStarted() {
                 onChange={(e) => setTwoFactorToken(e.target.value.replace(/\D/g, ""))}
                 maxLength={6}
                 placeholder="123456"
-                className="w-full text-center tracking-[0.6em] text-2xl font-mono py-3 px-4 bg-slate-950 border border-slate-700/80 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all placeholder:tracking-normal placeholder:text-slate-600"
+                className="w-full text-center tracking-[0.6em] text-2xl font-mono py-3 px-4 bg-slate-950 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-all placeholder:tracking-normal placeholder:text-slate-600"
                 required
                 autoFocus
               />
@@ -226,14 +229,14 @@ export default function GetStarted() {
             <button
               type="submit"
               disabled={isLoading || twoFactorToken.length !== 6}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold py-3 px-4 rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-lg transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? <LoaderCircle className="animate-spin" size={18} /> : "Verify Code"}
             </button>
             <button
               type="button"
               onClick={resetForms}
-              className="w-full text-xs text-slate-400 hover:text-slate-200 transition-colors pt-2"
+              className="w-full text-xs font-mono text-slate-400 hover:text-slate-200 transition-colors pt-2"
             >
               ← Return to login
             </button>
@@ -242,7 +245,7 @@ export default function GetStarted() {
           /* Login Form */
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Email Address</label>
+              <label className="block text-xs font-mono text-slate-300 mb-1.5">EMAIL ADDRESS</label>
               <div className="relative">
                 <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
@@ -251,12 +254,12 @@ export default function GetStarted() {
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 transition-all"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Password</label>
+              <label className="block text-xs font-mono text-slate-300 mb-1.5">MASTER PASSWORD</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
@@ -265,14 +268,14 @@ export default function GetStarted() {
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 transition-all"
                 />
               </div>
             </div>
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full mt-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold py-2.5 px-4 rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full mt-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-bold text-xs uppercase tracking-wider py-2.5 px-4 rounded-lg transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isLoading ? (
                 <LoaderCircle className="animate-spin" size={18} />
@@ -288,7 +291,7 @@ export default function GetStarted() {
           /* Signup Form */
           <form onSubmit={handleSignup} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Username</label>
+              <label className="block text-xs font-mono text-slate-300 mb-1.5">USERNAME</label>
               <div className="relative">
                 <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
@@ -297,12 +300,12 @@ export default function GetStarted() {
                   value={signupName}
                   onChange={(e) => setSignupName(e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 transition-all"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Email Address</label>
+              <label className="block text-xs font-mono text-slate-300 mb-1.5">EMAIL ADDRESS</label>
               <div className="relative">
                 <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
@@ -311,26 +314,26 @@ export default function GetStarted() {
                   value={signupEmail}
                   onChange={(e) => setSignupEmail(e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 transition-all"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Master Password</label>
+              <label className="block text-xs font-mono text-slate-300 mb-1.5">MASTER PASSWORD</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
                   type="password"
-                  placeholder="Min 8 chars, 1 upper, 1 special"
+                  placeholder="Min 8 chars, upper, lower, number & special"
                   value={signupPassword}
                   onChange={(e) => setSignupPassword(e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 transition-all"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">Confirm Password</label>
+              <label className="block text-xs font-mono text-slate-300 mb-1.5">CONFIRM PASSWORD</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
@@ -339,14 +342,14 @@ export default function GetStarted() {
                   value={signupConfirm}
                   onChange={(e) => setSignupConfirm(e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 transition-all"
                 />
               </div>
             </div>
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full mt-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold py-2.5 px-4 rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full mt-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-bold text-xs uppercase tracking-wider py-2.5 px-4 rounded-lg transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isLoading ? (
                 <LoaderCircle className="animate-spin" size={18} />
@@ -360,11 +363,6 @@ export default function GetStarted() {
           </form>
         )}
       </div>
-
-      {/* Footer copyright */}
-      <p className="mt-8 text-xs text-slate-500 relative z-10">
-        VaultX © {new Date().getFullYear()} — AES-256-GCM Encrypted & Cookie Auth Protected
-      </p>
     </div>
   );
 }
