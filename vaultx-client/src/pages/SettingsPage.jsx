@@ -130,11 +130,14 @@ export default function SettingsPage() {
     executeLogout(); // Or logout directly if no confirmation is needed on settings page
   };
 
-  const executeLogout = () => {
-    localStorage.removeItem("vaultxToken");
-    delete API.defaults.headers.common['Authorization'];
+  const executeLogout = async () => {
+    try {
+      await API.post("/auth/logout");
+    } catch (e) {
+      console.error("Logout error:", e);
+    }
     navigate("/get-started");
-  }
+  };
 
   const activeLinkStyle = "bg-green-500/10 text-green-300 font-semibold";
   const inactiveLinkStyle = "text-green-500 hover:bg-gray-800/50 hover:text-green-300";
