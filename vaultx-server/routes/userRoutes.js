@@ -1,16 +1,22 @@
 import express from "express";
-// Import both controller functions
+import rateLimit from "express-rate-limit";
 import { getUserProfile, changePassword } from "../controllers/userController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// All routes in this file are protected by the auth middleware
+// Strict rate limiter for password changes (5 attempts per 15 min)
+const passwordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { message: "Too many password change attempts. Please try again after 15 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 router.use(authMiddleware);
 
 router.get("/me", getUserProfile);
-
-// Add the new route for changing the password
-router.put("/change-password", changePassword);
+router.put("/change-password", passwordLimiter, changePassword);
 
 export default router;
