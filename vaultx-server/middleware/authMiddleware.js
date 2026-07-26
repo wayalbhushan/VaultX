@@ -1,22 +1,46 @@
 import jwt from "jsonwebtoken";
 
 export default function authMiddleware(req, res, next) {
-  const authHeader = req.headers["authorization"];
+  // 1. Extract Access Token from httpOnly cookie or fallback Authorization header
+  let token = req.cookies?.accessToken;
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "No token provided" });
+  if (!token) {
+    const authHeader = req.headers["authorization"];
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    }
   }
 
-  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ error: "Authentication required. No token provided." });
+  }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Prevent using temporary 2FA pre-auth tokens as full access tokens
+    if (decoded.stage === "2fa_pending") {
+      return res.status(401).json({ error: "2FA verification incomplete." });
+    }
 
-    // attach user info from token to request
+    // 2. Validate CSRF token for mutating requests (POST, PUT, DELETE, PATCH)
+    const mutatingMethods = ["POST", "PUT", "DELETE", "PATCH"];
+    if (mutatingMethods.includes(req.method.toUpperCase())) {
+      const csrfHeader = req.headers["x-csrf-token"];
+      const csrfCookie = req.cookies?.csrfToken;
+
+      // Skip CSRF validation for unauthenticated auth endpoints (handled separately)
+      const isAuthRoute = req.originalUrl.startsWith("/api/auth");
+      if (!isAuthRoute) {
+        if (!csrfHeader || !csrfCookie || csrfHeader !== csrfCookie) {
+          return res.status(403).json({ error: "CSRF token validation failed." });
+        }
+      }
+    }
+
     req.user = { id: decoded.id };
     next();
   } catch (error) {
-    console.error("JWT Error:", error.message);
-    res.status(401).json({ error: "Invalid or expired token" });
+    return res.status(401).json({ error: "Invalid or expired access token." });
   }
 }
