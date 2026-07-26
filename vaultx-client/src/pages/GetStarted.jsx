@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import API from "../utils/api";
 import MatrixBackground from "../components/MatrixBackground";
-import { LoaderCircle, Shield, Lock, Mail, User, KeyRound, AlertCircle, CheckCircle2, ArrowRight, Terminal } from "lucide-react";
+import { LoaderCircle, Shield, Lock, Mail, User, KeyRound, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
 
 export default function GetStarted() {
   const navigate = useNavigate();
@@ -52,10 +52,13 @@ export default function GetStarted() {
       setSignupPassword("");
       setSignupConfirm("");
     } catch (err) {
+      const errorDetails = err.response?.data?.details;
       const errorMsg =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        "Signup failed. Please check your details.";
+        Array.isArray(errorDetails) && errorDetails.length > 0
+          ? errorDetails.map((d) => d.message).join(" • ")
+          : err.response?.data?.message ||
+            err.response?.data?.error ||
+            "Signup failed. Please check your details.";
       setMessageType("error");
       setMessage(errorMsg);
     } finally {
@@ -80,7 +83,7 @@ export default function GetStarted() {
       } else {
         const { user } = res.data;
         setMessageType("success");
-        setMessage(`Welcome back, ${user.username}!`);
+        setMessage(`Welcome back, ${user.username}! Redirecting to console...`);
         setTimeout(() => navigate("/dashboard"), 800);
       }
     } catch (err) {
@@ -190,7 +193,7 @@ export default function GetStarted() {
         {message && (
           <div
             role="alert"
-            className={`mb-6 p-3.5 rounded-lg border text-xs font-medium flex items-start gap-2.5 font-sans ${
+            className={`mb-6 p-3.5 rounded-lg border text-xs font-medium flex items-start gap-2.5 font-sans leading-relaxed ${
               messageType === "error"
                 ? "bg-rose-500/10 border-rose-500/30 text-rose-300"
                 : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
@@ -319,12 +322,15 @@ export default function GetStarted() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-mono text-slate-300 mb-1.5">MASTER PASSWORD</label>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-xs font-mono text-slate-300">MASTER PASSWORD</label>
+                <span className="text-[10px] font-mono text-emerald-400/80">Req: Min 8, A-z, 0-9, !@#</span>
+              </div>
               <div className="relative">
                 <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
                   type="password"
-                  placeholder="Min 8 chars, upper, lower, number & special"
+                  placeholder="e.g. Vaultx#2026!"
                   value={signupPassword}
                   onChange={(e) => setSignupPassword(e.target.value)}
                   required
