@@ -3,9 +3,8 @@
 import speakeasy from "speakeasy";
 import qrcode from "qrcode";
 import User from "../models/user.js";
-import bcrypt from "bcryptjs"; // 
-
-/* ... existing generateTwoFactorSecret and verifyTwoFactorToken functions ... */
+import bcrypt from "bcryptjs";
+import { encrypt, decrypt } from "../utils/cryptoHelper.js";
 
 /**
  * @desc    Generate a new 2FA secret and QR code for the user
@@ -21,8 +20,15 @@ export const generateTwoFactorSecret = async (req, res) => {
     const secret = speakeasy.generateSecret({
       name: `VaultX (${user.email})`,
     });
-    user.twoFactorSecret = secret.base32;
+    
+    // Encrypt TOTP secret before persisting to database
+    const encryptedSecret = encrypt(secret.base32);
+    user.twoFactorSecret = {
+      encryptedData: encryptedSecret.encryptedData,
+      iv: encryptedSecret.iv,
+    };
     await user.save();
+
     qrcode.toDataURL(secret.otpauth_url, (err, data_url) => {
       if (err) {
         console.error("QR Code generation error:", err);
@@ -45,11 +51,17 @@ export const verifyTwoFactorToken = async (req, res) => {
   try {
     const { token } = req.body;
     const user = await User.findById(req.user.id);
-    if (!user || !user.twoFactorSecret) {
+    if (!user || !user.twoFactorSecret || !user.twoFactorSecret.encryptedData) {
       return res.status(400).json({ message: "2FA not set up or user not found" });
     }
+
+    const decryptedSecret = decrypt(
+      user.twoFactorSecret.encryptedData,
+      user.twoFactorSecret.iv
+    );
+
     const verified = speakeasy.totp.verify({
-      secret: user.twoFactorSecret,
+      secret: decryptedSecret,
       encoding: "base32",
       token: token,
     });
@@ -65,7 +77,6 @@ export const verifyTwoFactorToken = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
 
 /**
  * @desc    Disable 2FA for the user after password confirmation
@@ -89,7 +100,7 @@ export const disableTwoFactor = async (req, res) => {
 
     // If password is correct, disable 2FA
     user.isTwoFactorEnabled = false;
-    user.twoFactorSecret = null; // Important: Clear the secret
+    user.twoFactorSecret = { encryptedData: null, iv: null };
     await user.save();
 
     res.json({ message: "2FA has been disabled." });
@@ -97,4 +108,4 @@ export const disableTwoFactor = async (req, res) => {
     console.error("2FA disable error:", err.message);
     res.status(500).json({ message: "Server error" });
   }
-};
+};
