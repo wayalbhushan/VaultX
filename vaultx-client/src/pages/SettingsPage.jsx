@@ -1,465 +1,308 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import API from "../utils/api";
 import Sidebar from "../components/Sidebar";
+import CyberLoader from "../components/SkeletonLoader";
 import {
   Settings,
-  User,
   Shield,
-  Lock,
   Smartphone,
-  Eye,
-  EyeOff,
-  LoaderCircle,
-  X,
   KeyRound,
   Trash2,
-  LogOut,
   CheckCircle2,
   AlertCircle,
-  Globe,
+  QrCode,
+  Lock,
+  User,
+  LogOut,
+  X,
 } from "lucide-react";
 
 export default function SettingsPage() {
   const [user, setUser] = useState(null);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [sessions, setSessions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Change Password state
+  // Form States
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordMsg, setPasswordMsg] = useState("");
-  const [passwordMsgType, setPasswordMsgType] = useState("error");
-  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNew, setShowNew] = useState(false);
+  const [passMsg, setPassMsg] = useState("");
+  const [passMsgType, setPassMsgType] = useState("error");
 
-  // 2FA State
+  // 2FA Modal state
   const [show2faModal, setShow2faModal] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
-  const [twoFactorToken, setTwoFactorToken] = useState("");
-  const [isGenerating2fa, setIsGenerating2fa] = useState(false);
-  const [isVerifying2fa, setIsVerifying2fa] = useState(false);
-  const [showDisable2faModal, setShowDisable2faModal] = useState(false);
-  const [passwordForDisable, setPasswordForDisable] = useState("");
-
-  // Sessions State
-  const [sessions, setSessions] = useState([]);
-  const [isLoadingSessions, setIsLoadingSessions] = useState(true);
+  const [secretCode, setSecretCode] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [twoFaMsg, setTwoFaMsg] = useState("");
 
   useEffect(() => {
-    fetchUserAndSessions();
+    fetchSettingsData();
   }, []);
 
-  const fetchUserAndSessions = async () => {
-    setIsLoadingUser(true);
-    setIsLoadingSessions(true);
+  const fetchSettingsData = async () => {
+    setIsLoading(true);
     try {
-      const [userRes, sessionsRes] = await Promise.all([
-        API.get("/user/me"),
-        API.get("/user/sessions").catch(() => ({ data: [] })),
-      ]);
-      setUser(userRes.data.user);
-      setSessions(sessionsRes.data || []);
+      const userRes = await API.get("/user/me");
+      setUser(userRes.data.user || userRes.data);
+
+      try {
+        const sessRes = await API.get("/user/sessions");
+        setSessions(sessRes.data.sessions || []);
+      } catch (e) {
+        setSessions([]);
+      }
     } catch (err) {
-      console.error("Failed to load settings data:", err);
+      console.error("Settings fetch error:", err);
     } finally {
-      setIsLoadingUser(false);
-      setIsLoadingSessions(false);
+      setIsLoading(false);
     }
   };
 
-  const handlePasswordChange = async (e) => {
+  const handleChangePassword = async (e) => {
     e.preventDefault();
-    setPasswordMsg("");
-    setIsUpdatingPassword(true);
+    setPassMsg("");
 
     if (newPassword !== confirmPassword) {
-      setPasswordMsgType("error");
-      setPasswordMsg("New passwords do not match.");
-      setIsUpdatingPassword(false);
+      setPassMsgType("error");
+      setPassMsg("New passwords do not match.");
       return;
     }
 
     try {
-      const res = await API.put("/user/change-password", {
+      await API.put("/user/change-password", {
         currentPassword,
         newPassword,
       });
-      setPasswordMsgType("success");
-      setPasswordMsg(res.data.message || "Password updated successfully.");
+      setPassMsgType("success");
+      setPassMsg("Master password successfully updated.");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (err) {
-      const msg =
-        err.response?.data?.message || err.response?.data?.error || "Password update failed.";
-      setPasswordMsgType("error");
-      setPasswordMsg(msg);
-    } finally {
-      setIsUpdatingPassword(false);
+      const errorDetails = err.response?.data?.details;
+      const errorMsg =
+        Array.isArray(errorDetails) && errorDetails.length > 0
+          ? errorDetails.map((d) => d.message).join(" • ")
+          : err.response?.data?.error || err.response?.data?.message || "Failed to update password.";
+      setPassMsgType("error");
+      setPassMsg(errorMsg);
     }
   };
 
-  const handleEnable2fa = async () => {
-    setIsGenerating2fa(true);
-    setShow2faModal(true);
+  const handleSetup2FA = async () => {
+    setTwoFaMsg("");
     try {
-      const res = await API.post("/2fa/generate");
-      setQrCodeUrl(res.data.qrCodeUrl);
+      const res = await API.post("/auth/setup-2fa");
+      setQrCodeUrl(res.data.qrCode);
+      setSecretCode(res.data.secret);
+      setShow2faModal(true);
     } catch (err) {
-      console.error(err);
-    } finally {
-      setIsGenerating2fa(false);
+      alert("Failed to initiate 2FA setup.");
     }
   };
 
-  const handleVerify2fa = async () => {
-    setIsVerifying2fa(true);
+  const handleVerify2FA = async (e) => {
+    e.preventDefault();
+    setTwoFaMsg("");
     try {
-      const res = await API.post("/2fa/verify", { token: twoFactorToken });
+      await API.post("/auth/enable-2fa", { token: verificationCode });
       setShow2faModal(false);
-      setTwoFactorToken("");
-      fetchUserAndSessions();
+      setVerificationCode("");
+      fetchSettingsData();
     } catch (err) {
-      console.error(err);
-    } finally {
-      setIsVerifying2fa(false);
-    }
-  };
-
-  const handleDisable2fa = async () => {
-    setIsVerifying2fa(true);
-    try {
-      await API.post("/2fa/disable", { password: passwordForDisable });
-      setShowDisable2faModal(false);
-      setPasswordForDisable("");
-      fetchUserAndSessions();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsVerifying2fa(false);
+      setTwoFaMsg(err.response?.data?.error || "Invalid 2FA token.");
     }
   };
 
   const handleRevokeSession = async (sessionId) => {
     try {
       await API.delete(`/user/sessions/${sessionId}`);
-      setSessions(sessions.filter((s) => s._id !== sessionId));
+      fetchSettingsData();
     } catch (err) {
-      console.error("Failed to revoke session:", err);
+      alert("Failed to revoke session.");
     }
   };
 
-  const handleRevokeOtherSessions = async () => {
+  const handleRevokeOthers = async () => {
+    if (!window.confirm("Revoke all other active sessions except current device?")) return;
     try {
       await API.post("/user/sessions/revoke-others");
-      fetchUserAndSessions();
+      fetchSettingsData();
     } catch (err) {
-      console.error("Failed to revoke other sessions:", err);
+      alert("Failed to revoke sessions.");
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col md:flex-row">
+    <div className="flex min-h-screen bg-slate-950 text-slate-100 font-sans">
       <Sidebar user={user} />
 
-      {/* Main Content */}
-      <main className="flex-1 p-6 md:p-10 md:ml-64 mt-16 md:mt-0 max-w-5xl mx-auto space-y-8">
+      <main className="flex-1 md:ml-64 p-6 md:p-10 pt-20 md:pt-10 overflow-y-auto">
         {/* Header */}
-        <div className="border-b border-slate-800/80 pb-6">
-          <h1 className="text-2xl md:text-3xl font-bold font-display tracking-tight text-white flex items-center gap-2">
-            <Settings className="text-emerald-400" size={26} />
-            <span>Security Settings</span>
+        <div className="mb-8 pb-6 border-b border-slate-800">
+          <h1 className="text-2xl md:text-3xl font-bold font-mono text-white tracking-tight flex items-center gap-2">
+            <Settings size={24} className="text-emerald-400" />
+            <span>Security Settings & Device Management</span>
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Manage your account credentials, 2FA authenticator, and active devices
+          <p className="text-xs text-slate-400 font-mono mt-1">
+            Authentication Policies • 2FA Enforcement • Active Device Revocation
           </p>
         </div>
 
-        {/* Profile Card */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-            <User size={18} className="text-emerald-400" />
-            <span>Account Profile</span>
-          </h2>
-          {isLoadingUser ? (
-            <div className="h-12 bg-slate-800/50 rounded-xl animate-pulse" />
-          ) : user ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl">
-                <span className="text-slate-500 block">Username</span>
-                <span className="text-sm font-semibold text-slate-100">{user.username}</span>
+        {isLoading ? (
+          <CyberLoader message="FETCHING SECURITY CONFIGURATION..." />
+        ) : (
+          <div className="space-y-8 max-w-4xl font-mono">
+            {/* User Profile Card */}
+            <div className="bg-slate-900/90 border border-slate-800 p-6 rounded-none shadow-sm flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-none bg-slate-950 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <User size={24} />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-white">{user?.username}</h2>
+                  <p className="text-xs text-slate-400 font-sans">{user?.email}</p>
+                </div>
               </div>
-              <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl">
-                <span className="text-slate-500 block">Email Address</span>
-                <span className="text-sm font-semibold text-slate-100">{user.email}</span>
-              </div>
-            </div>
-          ) : null}
-        </div>
 
-        {/* Change Password Card */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-            <Lock size={18} className="text-emerald-400" />
-            <span>Change Master Password</span>
-          </h2>
-
-          {passwordMsg && (
-            <div
-              className={`mb-4 p-3 rounded-xl border text-xs font-medium flex items-center gap-2 ${
-                passwordMsgType === "error"
-                  ? "bg-rose-500/10 border-rose-500/30 text-rose-300"
-                  : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-              }`}
-            >
-              {passwordMsgType === "error" ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
-              <span>{passwordMsg}</span>
-            </div>
-          )}
-
-          <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">Current Password</label>
-              <div className="relative">
-                <input
-                  type={showCurrent ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full pl-3 pr-10 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrent(!showCurrent)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-                >
-                  {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">New Master Password</label>
-              <div className="relative">
-                <input
-                  type={showNew ? "text" : "password"}
-                  placeholder="Min 8 chars, upper, lower, number & special"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full pl-3 pr-10 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNew(!showNew)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-                >
-                  {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">Confirm New Password</label>
-              <input
-                type="password"
-                placeholder="Re-enter new password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isUpdatingPassword}
-              className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold rounded-xl transition shadow-md shadow-emerald-500/20 disabled:opacity-50"
-            >
-              {isUpdatingPassword ? "Updating Password..." : "Update Master Password"}
-            </button>
-          </form>
-        </div>
-
-        {/* Two-Factor Authentication Card */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-base font-semibold text-white flex items-center gap-2">
-                <KeyRound size={18} className="text-amber-400" />
-                <span>Two-Factor Authentication (2FA)</span>
-              </h2>
-              <p className="text-xs text-slate-400 mt-1">
-                Status:{" "}
+              <div className="flex items-center gap-2">
                 <span
-                  className={
+                  className={`px-3 py-1 text-xs font-mono font-bold uppercase tracking-wider rounded-none border ${
                     user?.isTwoFactorEnabled
-                      ? "text-emerald-400 font-bold"
-                      : "text-rose-400 font-bold"
-                  }
+                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                      : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                  }`}
                 >
-                  {user?.isTwoFactorEnabled ? "Active & Enforced" : "Disabled"}
+                  {user?.isTwoFactorEnabled ? "2FA Active" : "2FA Disabled"}
                 </span>
-              </p>
-            </div>
-            {user?.isTwoFactorEnabled ? (
-              <button
-                onClick={() => setShowDisable2faModal(true)}
-                className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 text-xs font-semibold rounded-xl"
-              >
-                Disable 2FA
-              </button>
-            ) : (
-              <button
-                onClick={handleEnable2fa}
-                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold rounded-xl shadow-md shadow-emerald-500/20"
-              >
-                Enable 2FA Authenticator
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Active Sessions & Device Management Card */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-            <div>
-              <h2 className="text-base font-semibold text-white flex items-center gap-2">
-                <Smartphone size={18} className="text-cyan-400" />
-                <span>Active Logged-In Sessions & Devices</span>
-              </h2>
-              <p className="text-xs text-slate-400 mt-1">
-                Revoke unrecognized devices or log out active sessions remotely
-              </p>
-            </div>
-            {sessions.length > 1 && (
-              <button
-                onClick={handleRevokeOtherSessions}
-                className="px-3.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 text-xs font-semibold rounded-xl shrink-0"
-              >
-                Log Out All Other Devices
-              </button>
-            )}
-          </div>
-
-          {isLoadingSessions ? (
-            <div className="h-20 bg-slate-800/50 rounded-xl animate-pulse" />
-          ) : sessions.length > 0 ? (
-            <div className="divide-y divide-slate-800/60">
-              {sessions.map((s) => (
-                <div key={s._id} className="py-3.5 flex items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400 shrink-0">
-                      <Globe size={16} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-200 truncate">
-                          {s.ipAddress}
-                        </span>
-                        {s.isCurrentSession && (
-                          <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold rounded">
-                            Current Device
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-slate-500 truncate max-w-md">{s.userAgent}</p>
-                    </div>
-                  </div>
-
-                  {!s.isCurrentSession && (
-                    <button
-                      onClick={() => handleRevokeSession(s._id)}
-                      className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
-                      title="Revoke session"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-slate-500">No active sessions tracked.</p>
-          )}
-        </div>
-      </main>
-
-      {/* 2FA Setup Modal */}
-      {show2faModal && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl relative text-center">
-            <button
-              onClick={() => setShow2faModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
-            >
-              <X size={18} />
-            </button>
-            <h3 className="text-lg font-bold text-white mb-2">Set Up 2FA Authenticator</h3>
-
-            {isGenerating2fa ? (
-              <LoaderCircle size={32} className="animate-spin mx-auto my-8 text-emerald-400" />
-            ) : qrCodeUrl ? (
-              <div className="space-y-4 text-xs text-slate-300">
-                <p>1. Scan this QR code with Google Authenticator or Authy.</p>
-                <div className="bg-white p-3 rounded-2xl inline-block shadow-inner">
-                  <img src={qrCodeUrl} alt="2FA QR Code" className="w-40 h-40" />
-                </div>
-                <p>2. Enter the 6-digit code generated by your app.</p>
-                <input
-                  type="text"
-                  value={twoFactorToken}
-                  onChange={(e) => setTwoFactorToken(e.target.value.replace(/\D/g, ""))}
-                  maxLength={6}
-                  placeholder="123456"
-                  className="w-48 mx-auto text-center tracking-[0.5em] text-2xl font-mono p-2 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-                />
-                <button
-                  onClick={handleVerify2fa}
-                  disabled={isVerifying2fa || twoFactorToken.length !== 6}
-                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold py-2.5 rounded-xl transition shadow-md shadow-emerald-500/20 disabled:opacity-50"
-                >
-                  {isVerifying2fa ? "Verifying..." : "Verify & Enable 2FA"}
-                </button>
               </div>
-            ) : null}
-          </div>
-        </div>
-      )}
+            </div>
 
-      {/* Disable 2FA Modal */}
-      {showDisable2faModal && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl relative text-center">
-            <button
-              onClick={() => setShowDisable2faModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
-            >
-              <X size={18} />
-            </button>
-            <h3 className="text-lg font-bold text-rose-400 mb-2">Disable 2FA</h3>
-            <p className="text-xs text-slate-300 mb-4">
-              Enter your master password to confirm disabling 2FA.
-            </p>
-            <input
-              type="password"
-              placeholder="Master Password"
-              value={passwordForDisable}
-              onChange={(e) => setPasswordForDisable(e.target.value)}
-              className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 mb-4"
-            />
-            <button
-              onClick={handleDisable2fa}
-              disabled={isVerifying2fa || !passwordForDisable}
-              className="w-full bg-rose-600 hover:bg-rose-500 text-white font-semibold py-2.5 text-xs rounded-xl transition shadow-md disabled:opacity-50"
-            >
-              Confirm & Disable
-            </button>
+            {/* Change Password Form */}
+            <div className="bg-slate-900/90 border border-slate-800 p-6 rounded-none shadow-sm space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
+                <Lock size={18} className="text-emerald-400" />
+                <h3 className="text-base font-bold text-white">Update Master Password</h3>
+              </div>
+
+              {passMsg && (
+                <div
+                  className={`p-3 text-xs font-mono border rounded-none flex items-center gap-2 ${
+                    passMsgType === "error"
+                      ? "bg-rose-500/10 border-rose-500/30 text-rose-300"
+                      : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                  }`}
+                >
+                  {passMsgType === "error" ? <AlertCircle size={15} /> : <CheckCircle2 size={15} />}
+                  <span>{passMsg}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+                <div>
+                  <label className="block text-xs text-slate-300 mb-1">Current Master Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-none text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-slate-300 mb-1">New Master Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Min 8 chars, 1 upper, 1 special"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-none text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-slate-300 mb-1">Confirm New Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-none text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-bold text-xs uppercase tracking-wider rounded-none shadow-[0_0_15px_rgba(16,185,129,0.3)] transition"
+                >
+                  Update Master Password
+                </button>
+              </form>
+            </div>
+
+            {/* Active Sessions Management */}
+            <div className="bg-slate-900/90 border border-slate-800 p-6 rounded-none shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Smartphone size={18} className="text-cyan-400" />
+                  <h3 className="text-base font-bold text-white">Active Devices & Sessions</h3>
+                </div>
+
+                {sessions.length > 1 && (
+                  <button
+                    onClick={handleRevokeOthers}
+                    className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 font-mono text-xs font-bold uppercase rounded-none transition"
+                  >
+                    Revoke Other Sessions
+                  </button>
+                )}
+              </div>
+
+              {sessions.length === 0 ? (
+                <p className="text-xs text-slate-500">No active session records found.</p>
+              ) : (
+                <div className="space-y-3">
+                  {sessions.map((sess) => (
+                    <div
+                      key={sess._id}
+                      className="p-4 bg-slate-950 border border-slate-800 rounded-none flex items-center justify-between"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-white">
+                            {sess.ipAddress || "127.0.0.1"}
+                          </span>
+                          {sess.isCurrent && (
+                            <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px]">
+                              CURRENT DEVICE
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 font-sans truncate max-w-md">
+                          {sess.userAgent || "User Agent Browser"}
+                        </p>
+                      </div>
+
+                      {!sess.isCurrent && (
+                        <button
+                          onClick={() => handleRevokeSession(sess._id)}
+                          className="p-2 text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-500/30"
+                          title="Revoke session"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </main>
     </div>
   );
 }

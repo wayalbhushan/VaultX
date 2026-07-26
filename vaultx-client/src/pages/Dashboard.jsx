@@ -1,60 +1,40 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import API from "../utils/api";
 import Sidebar from "../components/Sidebar";
-import { SkeletonCard, SkeletonStat } from "../components/SkeletonLoader";
+import CyberLoader, { SkeletonStat } from "../components/SkeletonLoader";
 import {
   Shield,
   Key,
-  Lock,
   Star,
-  Activity,
+  Clock,
+  Smartphone,
   Plus,
+  RefreshCw,
   Copy,
   Check,
-  Eye,
-  Clock,
-  Sparkles,
-  AlertTriangle,
+  Lock,
+  Activity,
   ArrowRight,
-  RefreshCw,
-  X,
+  Eye,
+  EyeOff,
+  AlertTriangle,
+  Terminal,
+  Zap,
 } from "lucide-react";
-
-// Password generator helper
-function generateSecurePassword(len = 20) {
-  const chars =
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}";
-  let out = "";
-  const arr = new Uint32Array(len);
-  window.crypto.getRandomValues(arr);
-  for (let i = 0; i < len; i++) out += chars[arr[i] % chars.length];
-  return out;
-}
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
-  const [secrets, setSecrets] = useState([]);
-  const [activities, setActivities] = useState([]);
-  const [expiredCount, setExpiredCount] = useState(0);
-  const [activeSessionCount, setActiveSessionCount] = useState(1);
+  const [stats, setStats] = useState({ total: 0, favorites: 0, expired: 0, sessions: 0 });
+  const [recentSecrets, setRecentSecrets] = useState([]);
+  const [recentLogs, setRecentLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Modals
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newSecret, setNewSecret] = useState({
-    title: "",
-    data: "",
-    type: "secret",
-    description: "",
-    folder: "",
-    tags: "",
-  });
+  // Generator Modal State
+  const [showGenModal, setShowGenModal] = useState(false);
   const [generatedPassword, setGeneratedPassword] = useState("");
-  const [viewingSecret, setViewingSecret] = useState(null);
-  const [copySuccess, setCopySuccess] = useState("");
-
-  const navigate = useNavigate();
+  const [passLength, setPassLength] = useState(16);
+  const [copiedPass, setCopiedPass] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -63,548 +43,377 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      const [userRes, secretsRes, activitiesRes, expiredRes, sessionsRes] =
-        await Promise.all([
-          API.get("/user/me"),
-          API.get("/secrets"),
-          API.get("/activity"),
-          API.get("/secrets/expired").catch(() => ({ data: [] })),
-          API.get("/user/sessions").catch(() => ({ data: [] })),
-        ]);
+      const userRes = await API.get("/user/me");
+      setUser(userRes.data.user || userRes.data);
 
-      setUser(userRes.data.user);
-      setSecrets(secretsRes.data);
-      setActivities(activitiesRes.data);
-      setExpiredCount(expiredRes.data?.length || 0);
-      setActiveSessionCount(sessionsRes.data?.length || 1);
+      const secretsRes = await API.get("/secrets");
+      const secretsData = secretsRes.data.secrets || secretsRes.data || [];
+      setRecentSecrets(secretsData.slice(0, 5));
+
+      const favCount = secretsData.filter((s) => s.isFavorite).length;
+      const expCount = secretsData.filter(
+        (s) => s.expiresAt && new Date(s.expiresAt) < new Date()
+      ).length;
+
+      let sessionCount = 1;
+      try {
+        const sessRes = await API.get("/user/sessions");
+        sessionCount = (sessRes.data.sessions || []).length;
+      } catch (e) {
+        sessionCount = 1;
+      }
+
+      setStats({
+        total: secretsData.length,
+        favorites: favCount,
+        expired: expCount,
+        sessions: sessionCount,
+      });
+
+      try {
+        const logsRes = await API.get("/activity");
+        const logsData = logsRes.data.activities || logsRes.data || [];
+        setRecentLogs(logsData.slice(0, 5));
+      } catch (e) {
+        setRecentLogs([]);
+      }
     } catch (err) {
       console.error("Dashboard fetch error:", err);
-      if (err.response?.status === 401) {
-        navigate("/get-started");
-      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleViewSecret = async (secretId) => {
-    const title = secrets.find((s) => s._id === secretId)?.title || "Secret";
-    setViewingSecret({ title, data: "Loading..." });
-    try {
-      const res = await API.get(`/secrets/${secretId}`);
-      setViewingSecret(res.data);
-    } catch (error) {
-      const msg = error.response?.data?.message || "Failed to load secret.";
-      setViewingSecret({ title, error: msg });
+  const generatePassword = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}";
+    const array = new Uint8Array(passLength);
+    crypto.getRandomValues(array);
+    let result = "";
+    for (let i = 0; i < passLength; i++) {
+      result += chars[array[i] % chars.length];
     }
+    setGeneratedPassword(result);
+    setCopiedPass(false);
   };
 
-  const handleAddSecret = async (e) => {
-    e.preventDefault();
-    if (!newSecret.title || !newSecret.data) return;
-    try {
-      const tagArray = newSecret.tags
-        ? newSecret.tags.split(",").map((t) => t.trim()).filter(Boolean)
-        : [];
-
-      const res = await API.post("/secrets", {
-        ...newSecret,
-        tags: tagArray,
-      });
-
-      setSecrets([res.data, ...secrets]);
-      setNewSecret({
-        title: "",
-        data: "",
-        type: "secret",
-        description: "",
-        folder: "",
-        tags: "",
-      });
-      setShowAddModal(false);
-
-      const resActivities = await API.get("/activity");
-      setActivities(resActivities.data);
-    } catch (err) {
-      console.error("Failed to create secret:", err);
-    }
+  const copyPassword = () => {
+    navigator.clipboard.writeText(generatedPassword);
+    setCopiedPass(true);
+    setTimeout(() => setCopiedPass(false), 2000);
   };
-
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text);
-    setCopySuccess("Copied!");
-    setTimeout(() => setCopySuccess(""), 2000);
-  };
-
-  const handleGeneratePassword = () => {
-    const pwd = generateSecurePassword(20);
-    setGeneratedPassword(pwd);
-  };
-
-  const favoriteCount = secrets.filter((s) => s.isFavorite).length;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col md:flex-row">
-      <Sidebar user={user} onAddSecretClick={() => setShowAddModal(true)} />
+    <div className="flex min-h-screen bg-slate-950 text-slate-100 font-sans">
+      {/* Sidebar */}
+      <Sidebar user={user} />
 
-      {/* Main Container */}
-      <main className="flex-1 p-6 md:p-10 md:ml-64 mt-16 md:mt-0 max-w-7xl mx-auto space-y-8">
-        {/* Welcome Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
+      {/* Main Content View */}
+      <main className="flex-1 md:ml-64 p-6 md:p-10 pt-20 md:pt-10 overflow-y-auto">
+        {/* Top Welcome Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-800">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold font-display tracking-tight text-white flex items-center gap-2">
-              Welcome back, {user ? user.username : "..."} 👋
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-slate-900 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold tracking-widest uppercase mb-2">
+              <Terminal size={13} /> SECURE CONSOLE ACCESS ACTIVE
+            </div>
+            <h1 className="text-2xl md:text-4xl font-bold font-mono text-white tracking-tight">
+              Welcome back, <span className="text-emerald-400">{user?.username || "Security User"}</span>
             </h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Your secrets vault is active and encrypted with AES-256-GCM
+            <p className="text-xs md:text-sm text-slate-400 font-mono mt-1">
+              Vault Status: Active • Encryption: AES-256-GCM AEAD Mode
             </p>
           </div>
-          <div className="flex items-center gap-3">
+
+          <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={handleGeneratePassword}
-              className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition shadow-sm"
+              onClick={() => {
+                generatePassword();
+                setShowGenModal(true);
+              }}
+              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-emerald-500/30 text-emerald-400 font-mono text-xs font-bold uppercase tracking-wider rounded-none transition flex items-center gap-2 shadow-[0_0_10px_rgba(16,185,129,0.15)]"
             >
-              <Sparkles size={14} className="text-amber-400" />
-              <span>Generate Password</span>
+              <Zap size={14} />
+              <span>Password Generator</span>
             </button>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition shadow-md shadow-emerald-500/20"
-            >
-              <Plus size={16} className="stroke-[2.5]" />
-              <span>Add Secret</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Top Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {isLoading ? (
-            <>
-              <SkeletonStat />
-              <SkeletonStat />
-              <SkeletonStat />
-              <SkeletonStat />
-            </>
-          ) : (
-            <>
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-400">Total Secrets</span>
-                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    <Shield size={18} />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline justify-between">
-                  <span className="text-2xl font-bold text-white font-mono">{secrets.length}</span>
-                  <Link to="/dashboard/secrets" className="text-[11px] text-emerald-400 hover:underline flex items-center gap-1">
-                    Manage <ArrowRight size={10} />
-                  </Link>
-                </div>
-              </div>
-
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-400">Favorites</span>
-                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                    <Star size={18} />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline justify-between">
-                  <span className="text-2xl font-bold text-white font-mono">{favoriteCount}</span>
-                  <Link to="/dashboard/secrets?isFavorite=true" className="text-[11px] text-amber-400 hover:underline flex items-center gap-1">
-                    View <ArrowRight size={10} />
-                  </Link>
-                </div>
-              </div>
-
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-400">Expired / Expiring</span>
-                  <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                    <AlertTriangle size={18} />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline justify-between">
-                  <span className="text-2xl font-bold text-white font-mono">{expiredCount}</span>
-                  <span className="text-[11px] text-rose-400 font-medium">
-                    {expiredCount > 0 ? "Rotation needed" : "All active"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-400">Active Devices</span>
-                  <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                    <Clock size={18} />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline justify-between">
-                  <span className="text-2xl font-bold text-white font-mono">{activeSessionCount}</span>
-                  <Link to="/dashboard/settings" className="text-[11px] text-cyan-400 hover:underline flex items-center gap-1">
-                    Sessions <ArrowRight size={10} />
-                  </Link>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Dashboard Grid Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Recent Secrets Card */}
-          <div className="lg:col-span-2 bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <Lock size={18} className="text-emerald-400" />
-                  <h2 className="text-lg font-semibold text-white">Recent Vault Items</h2>
-                </div>
-                <Link
-                  to="/dashboard/secrets"
-                  className="text-xs font-medium text-emerald-400 hover:text-emerald-300 transition flex items-center gap-1"
-                >
-                  View All Vault <ArrowRight size={12} />
-                </Link>
-              </div>
-
-              {isLoading ? (
-                <div className="space-y-3">
-                  <SkeletonCard />
-                  <SkeletonCard />
-                </div>
-              ) : secrets.length > 0 ? (
-                <div className="divide-y divide-slate-800/60">
-                  {secrets.slice(0, 4).map((s) => (
-                    <div
-                      key={s._id}
-                      className="py-3.5 flex items-center justify-between group hover:bg-slate-800/30 px-3 rounded-xl transition"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300 group-hover:text-emerald-400 border border-slate-700/50 shrink-0">
-                          {s.type === "key" ? (
-                            <Key size={16} />
-                          ) : s.type === "password" ? (
-                            <Lock size={16} />
-                          ) : (
-                            <Shield size={16} />
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="text-sm font-semibold text-slate-200 group-hover:text-white truncate">
-                            {s.title}
-                          </h3>
-                          <p className="text-xs text-slate-400 truncate">
-                            {s.description || `Type: ${s.type}`}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleViewSecret(s._id)}
-                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 rounded-lg transition flex items-center gap-1.5 ml-4 shrink-0"
-                      >
-                        <Eye size={12} />
-                        <span>View</span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-12 text-center text-slate-400">
-                  <Shield size={36} className="mx-auto mb-3 opacity-30 text-slate-400" />
-                  <p className="text-sm">No secrets added yet.</p>
-                  <button
-                    onClick={() => setShowAddModal(true)}
-                    className="mt-3 text-xs text-emerald-400 hover:underline inline-block font-semibold"
-                  >
-                    + Add your first secret
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Activity Stream */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <Activity size={18} className="text-cyan-400" />
-                  <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
-                </div>
-                <Link
-                  to="/dashboard/activity"
-                  className="text-xs font-medium text-cyan-400 hover:text-cyan-300 transition"
-                >
-                  Log
-                </Link>
-              </div>
-
-              {isLoading ? (
-                <div className="space-y-3">
-                  <div className="h-10 bg-slate-800/50 rounded-xl animate-pulse"></div>
-                  <div className="h-10 bg-slate-800/50 rounded-xl animate-pulse"></div>
-                </div>
-              ) : activities.length > 0 ? (
-                <ul className="space-y-3 text-xs">
-                  {activities.slice(0, 5).map((a) => (
-                    <li
-                      key={a._id}
-                      className="p-3 bg-slate-950/60 border border-slate-800/60 rounded-xl flex items-start gap-3"
-                    >
-                      <div className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-slate-300 font-medium truncate">{a.action}</p>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          {new Date(a.createdAt).toLocaleTimeString()}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-xs text-slate-400 text-center py-8">No activity recorded.</p>
-              )}
-            </div>
 
             <Link
-              to="/dashboard/activity"
-              className="mt-6 w-full py-2.5 bg-slate-800/80 hover:bg-slate-800 text-slate-300 text-xs font-medium rounded-xl text-center transition block"
+              to="/dashboard/secrets"
+              className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono text-xs font-bold uppercase tracking-wider rounded-none shadow-[0_0_15px_rgba(16,185,129,0.3)] flex items-center gap-2 transition"
             >
-              View Full Security Audit Log
+              <Plus size={15} className="stroke-[2.5]" />
+              <span>Add New Secret</span>
             </Link>
           </div>
         </div>
-      </main>
 
-      {/* Add Secret Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
-            <button
-              onClick={() => setShowAddModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
-            >
-              <X size={18} />
-            </button>
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <Plus size={18} className="text-emerald-400" />
-              <span>Add New Secret</span>
-            </h3>
-            <form onSubmit={handleAddSecret} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Title</label>
-                <input
-                  type="text"
-                  placeholder="e.g. AWS Production Master Key"
-                  value={newSecret.title}
-                  onChange={(e) => setNewSecret({ ...newSecret, title: e.target.value })}
-                  className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-                  required
-                />
+        {isLoading ? (
+          <CyberLoader message="AUTHENTICATING VAULT SESSION..." />
+        ) : (
+          <>
+            {/* Stat Cards Grid (Sharp Box Geometry) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+              <div className="bg-slate-900/90 border border-emerald-500/30 p-5 rounded-none shadow-sm hover:border-emerald-400 transition-colors group">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-mono font-bold uppercase text-slate-400 tracking-wider">
+                    Total Secrets
+                  </span>
+                  <div className="w-8 h-8 rounded-none bg-slate-950 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <Lock size={16} />
+                  </div>
+                </div>
+                <div className="text-3xl font-mono font-bold text-emerald-400 mb-1">
+                  {stats.total}
+                </div>
+                <Link
+                  to="/dashboard/secrets"
+                  className="text-[11px] font-mono text-slate-400 hover:text-emerald-400 transition flex items-center gap-1 mt-2"
+                >
+                  <span>Manage secrets</span>
+                  <ArrowRight size={12} />
+                </Link>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Secret Data</label>
-                <textarea
-                  placeholder="Paste confidential text or key string..."
-                  value={newSecret.data}
-                  onChange={(e) => setNewSecret({ ...newSecret, data: e.target.value })}
-                  className="w-full p-2.5 h-24 bg-slate-950 border border-slate-800 rounded-xl text-sm font-mono text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-                  required
-                />
+              <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-none shadow-sm hover:border-amber-500/50 transition-colors group">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-mono font-bold uppercase text-slate-400 tracking-wider">
+                    Favorite Secrets
+                  </span>
+                  <div className="w-8 h-8 rounded-none bg-slate-950 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <Star size={16} />
+                  </div>
+                </div>
+                <div className="text-3xl font-mono font-bold text-amber-400 mb-1">
+                  {stats.favorites}
+                </div>
+                <Link
+                  to="/dashboard/secrets?filter=favorites"
+                  className="text-[11px] font-mono text-slate-400 hover:text-amber-400 transition flex items-center gap-1 mt-2"
+                >
+                  <span>View starred</span>
+                  <ArrowRight size={12} />
+                </Link>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Type</label>
-                  <select
-                    value={newSecret.type}
-                    onChange={(e) => setNewSecret({ ...newSecret, type: e.target.value })}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+              <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-none shadow-sm hover:border-rose-500/50 transition-colors group">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-mono font-bold uppercase text-slate-400 tracking-wider">
+                    Expired Credentials
+                  </span>
+                  <div className="w-8 h-8 rounded-none bg-slate-950 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                    <AlertTriangle size={16} />
+                  </div>
+                </div>
+                <div className="text-3xl font-mono font-bold text-rose-400 mb-1">
+                  {stats.expired}
+                </div>
+                <span className="text-[11px] font-mono text-slate-500 block mt-2">
+                  {stats.expired === 0 ? "All payloads current" : "Requires key rotation"}
+                </span>
+              </div>
+
+              <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-none shadow-sm hover:border-cyan-500/50 transition-colors group">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-mono font-bold uppercase text-slate-400 tracking-wider">
+                    Active Devices
+                  </span>
+                  <div className="w-8 h-8 rounded-none bg-slate-950 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                    <Smartphone size={16} />
+                  </div>
+                </div>
+                <div className="text-3xl font-mono font-bold text-cyan-400 mb-1">
+                  {stats.sessions}
+                </div>
+                <Link
+                  to="/dashboard/settings"
+                  className="text-[11px] font-mono text-slate-400 hover:text-cyan-400 transition flex items-center gap-1 mt-2"
+                >
+                  <span>Session settings</span>
+                  <ArrowRight size={12} />
+                </Link>
+              </div>
+            </div>
+
+            {/* Main Content Grid: Recent Secrets & Audit Activity */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Recent Vault Items (2 cols) */}
+              <div className="lg:col-span-2 bg-slate-900/90 border border-emerald-500/30 p-6 rounded-none shadow-sm">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-5">
+                  <div className="flex items-center gap-2">
+                    <Lock size={18} className="text-emerald-400" />
+                    <h2 className="text-lg font-bold font-mono text-white">Recent Vault Items</h2>
+                  </div>
+                  <Link
+                    to="/dashboard/secrets"
+                    className="text-xs font-mono text-emerald-400 hover:underline flex items-center gap-1"
                   >
-                    <option value="secret">Secret</option>
-                    <option value="key">Key</option>
-                    <option value="password">Password</option>
-                  </select>
+                    <span>View All Vault</span>
+                    <ArrowRight size={12} />
+                  </Link>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Folder (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Production"
-                    value={newSecret.folder}
-                    onChange={(e) => setNewSecret({ ...newSecret, folder: e.target.value })}
-                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Tags (Comma-separated)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. aws, prod, database"
-                  value={newSecret.tags}
-                  onChange={(e) => setNewSecret({ ...newSecret, tags: e.target.value })}
-                  className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Description (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="Additional context or usage notes..."
-                  value={newSecret.description}
-                  onChange={(e) => setNewSecret({ ...newSecret, description: e.target.value })}
-                  className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl shadow-md shadow-emerald-500/20 transition"
-                >
-                  Save Secret
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Viewing Secret Modal */}
-      {viewingSecret && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-lg shadow-2xl relative">
-            <button
-              onClick={() => setViewingSecret(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
-            >
-              <X size={18} />
-            </button>
-            <h3 className="text-lg font-bold text-white mb-4 truncate pr-6 flex items-center gap-2">
-              <Shield size={18} className="text-emerald-400" />
-              <span>{viewingSecret.title}</span>
-            </h3>
-
-            {viewingSecret.error ? (
-              <p className="text-xs text-rose-400 p-3 bg-rose-500/10 rounded-xl border border-rose-500/20">
-                {viewingSecret.error}
-              </p>
-            ) : (
-              <div className="space-y-4">
-                <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-                  <label className="text-[10px] uppercase font-mono tracking-wider text-slate-400 block mb-1">
-                    Decrypted Payload (AES-256-GCM Verified)
-                  </label>
-                  <div className="flex justify-between items-center gap-3">
-                    <pre className="text-sm font-mono text-emerald-400 whitespace-pre-wrap break-all flex-1 select-all">
-                      {viewingSecret.data}
-                    </pre>
-                    <button
-                      onClick={() => handleCopy(viewingSecret.data)}
-                      className="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shrink-0"
+                {recentSecrets.length === 0 ? (
+                  <div className="py-12 text-center text-slate-500 font-mono text-xs">
+                    <p>No secrets stored yet.</p>
+                    <Link
+                      to="/dashboard/secrets"
+                      className="inline-block mt-3 px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 font-mono text-xs font-bold rounded-none"
                     >
-                      {copySuccess ? <Check size={14} /> : <Copy size={14} />}
-                      <span>{copySuccess || "Copy"}</span>
-                    </button>
+                      + Create First Secret
+                    </Link>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-3 font-mono">
+                    {recentSecrets.map((secret) => (
+                      <div
+                        key={secret._id}
+                        className="p-4 bg-slate-950/80 border border-slate-800 hover:border-emerald-500/40 rounded-none flex items-center justify-between transition group"
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className="w-9 h-9 rounded-none bg-slate-900 border border-slate-700 flex items-center justify-center text-emerald-400 shrink-0">
+                            <Key size={16} />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors truncate">
+                              {secret.title}
+                            </h3>
+                            <p className="text-xs text-slate-400 truncate font-sans">
+                              {secret.notes || "Encrypted credential payload"}
+                            </p>
+                          </div>
+                        </div>
 
-                <div className="grid grid-cols-2 gap-3 text-xs text-slate-300">
-                  <div>
-                    <span className="text-slate-500 block">Type</span>
-                    <span className="font-semibold capitalize text-slate-200">{viewingSecret.type}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block">Current Version</span>
-                    <span className="font-semibold text-emerald-400">v{viewingSecret.version || 1}</span>
-                  </div>
-                </div>
-
-                {viewingSecret.description && (
-                  <div className="text-xs">
-                    <span className="text-slate-500 block">Description</span>
-                    <p className="text-slate-300 mt-0.5">{viewingSecret.description}</p>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="px-2 py-0.5 bg-slate-900 border border-slate-800 text-[10px] font-mono text-slate-400">
+                            {secret.category || "General"}
+                          </span>
+                          <Link
+                            to={`/dashboard/secrets`}
+                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono rounded-none border border-slate-700"
+                          >
+                            View
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
-            )}
 
-            <div className="flex justify-end mt-6">
+              {/* Recent Audit Feed (1 col) */}
+              <div className="bg-slate-900/90 border border-slate-800 p-6 rounded-none shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-5">
+                    <div className="flex items-center gap-2">
+                      <Activity size={18} className="text-cyan-400" />
+                      <h2 className="text-lg font-bold font-mono text-white">Recent Activity</h2>
+                    </div>
+                    <Link
+                      to="/dashboard/activity"
+                      className="text-xs font-mono text-cyan-400 hover:underline"
+                    >
+                      Audit Log
+                    </Link>
+                  </div>
+
+                  {recentLogs.length === 0 ? (
+                    <div className="py-8 text-center text-slate-500 font-mono text-xs">
+                      No recent activity logs recorded.
+                    </div>
+                  ) : (
+                    <div className="space-y-3 font-mono text-xs">
+                      {recentLogs.map((log) => (
+                        <div
+                          key={log._id || Math.random()}
+                          className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-none space-y-1"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-emerald-400 font-bold uppercase tracking-wider text-[10px]">
+                              {log.action}
+                            </span>
+                            <span className="text-slate-500 text-[10px]">
+                              {new Date(log.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <p className="text-slate-300 text-[11px] truncate font-sans">
+                            {log.details || `Executed ${log.action}`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-6 border-t border-slate-800/80 mt-6">
+                  <Link
+                    to="/dashboard/activity"
+                    className="w-full py-2.5 bg-slate-950 hover:bg-slate-900 text-cyan-400 border border-cyan-500/30 font-mono text-xs font-bold uppercase tracking-wider rounded-none flex items-center justify-center gap-2 transition"
+                  >
+                    <span>Verify Cryptographic Ledger</span>
+                    <ArrowRight size={14} />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Password Generator Modal */}
+        {showGenModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-950 border border-emerald-500/40 p-6 rounded-none max-w-md w-full font-mono space-y-5 shadow-[0_0_40px_rgba(0,0,0,0.9)]">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Zap size={18} className="text-emerald-400" />
+                  <span>Web Crypto Password Generator</span>
+                </h3>
+                <button
+                  onClick={() => setShowGenModal(false)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono text-slate-400 mb-2">
+                  Length: {passLength} characters
+                </label>
+                <input
+                  type="range"
+                  min="8"
+                  max="64"
+                  value={passLength}
+                  onChange={(e) => {
+                    setPassLength(Number(e.target.value));
+                    generatePassword();
+                  }}
+                  className="w-full accent-emerald-400 cursor-pointer"
+                />
+              </div>
+
+              <div className="p-3 bg-slate-900 border border-slate-800 flex items-center justify-between">
+                <span className="text-sm font-mono text-emerald-400 font-bold break-all select-all">
+                  {generatedPassword}
+                </span>
+                <button
+                  onClick={copyPassword}
+                  className="ml-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 text-xs font-mono font-bold shrink-0 flex items-center gap-1"
+                >
+                  {copiedPass ? <Check size={14} /> : <Copy size={14} />}
+                  <span>{copiedPass ? "Copied" : "Copy"}</span>
+                </button>
+              </div>
+
               <button
-                onClick={() => setViewingSecret(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-medium"
+                onClick={generatePassword}
+                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-mono text-xs uppercase tracking-wider font-bold rounded-none transition flex items-center justify-center gap-2"
               >
-                Close
+                <RefreshCw size={14} />
+                <span>Regenerate Password</span>
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Password Generator Modal */}
-      {generatedPassword && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
-            <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-              <Sparkles size={18} className="text-amber-400" />
-              <span>Generated Password</span>
-            </h3>
-            <p className="text-xs text-slate-400 mb-4">
-              Cryptographically secure random password generated locally via Web Crypto API.
-            </p>
-
-            <div className="flex justify-between items-center bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-amber-300 font-mono text-sm mb-4">
-              <span className="truncate select-all font-bold">{generatedPassword}</span>
-              <button
-                onClick={() => handleCopy(generatedPassword)}
-                className="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 ml-2"
-              >
-                {copySuccess ? <Check size={14} /> : <Copy size={14} />}
-                <span>{copySuccess || "Copy"}</span>
-              </button>
-            </div>
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setGeneratedPassword("")}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-xl"
-              >
-                Done
-              </button>
-              <button
-                onClick={() => {
-                  setShowAddModal(true);
-                  setNewSecret({
-                    title: "Generated Password",
-                    data: generatedPassword,
-                    type: "password",
-                    description: `Auto-generated on ${new Date().toLocaleDateString()}`,
-                    folder: "",
-                    tags: "generated",
-                  });
-                  setGeneratedPassword("");
-                }}
-                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-semibold rounded-xl"
-              >
-                Save as Secret
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </main>
     </div>
   );
 }
