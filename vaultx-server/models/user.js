@@ -3,8 +3,8 @@
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  email:    { type: String, required: true, unique: true },
+  username: { type: String, required: true, unique: true, index: true },
+  email:    { type: String, required: true, unique: true, index: true },
   password: { type: String, required: true },
 
   // --- 2FA Fields ---
@@ -13,10 +13,11 @@ const userSchema = new mongoose.Schema({
     default: false,
   },
   twoFactorSecret: {
-    type: String, // This will store the secret provided by speakeasy
-    default: null,
+    encryptedData: { type: String, default: null },
+    iv: { type: String, default: null },
   },
 
 }, { timestamps: true });
 
 export default mongoose.model("User", userSchema);
+
