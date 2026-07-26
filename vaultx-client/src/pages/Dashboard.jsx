@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import API, { setAuthToken } from "../utils/api";
+import API from "../utils/api";
 import { Shield, Settings, Home, Activity, User, LogOut, Copy, X, Edit, Trash2 } from "lucide-react";
 
 // Strong password generator
@@ -31,14 +31,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem("vaultxToken");
-    if (!token) {
-      navigate("/get-started");
-      return;
-    }
-    setAuthToken(token);
     fetchData();
-  }, [navigate]);
+  }, []);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -55,7 +49,7 @@ export default function Dashboard() {
     } catch (err) {
       console.error("Failed to fetch dashboard data:", err);
       if (err.response?.status === 401) {
-        executeLogout();
+        navigate("/get-started");
       }
     } finally {
         setIsLoading(false);
@@ -104,9 +98,12 @@ export default function Dashboard() {
     setShowConfirmLogout(true);
   };
 
-  const executeLogout = () => {
-    localStorage.removeItem("vaultxToken");
-    delete API.defaults.headers.common['Authorization'];
+  const executeLogout = async () => {
+    try {
+      await API.post("/auth/logout");
+    } catch (e) {
+      console.error("Logout error:", e);
+    }
     navigate("/get-started");
   };
 
