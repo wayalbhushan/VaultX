@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import API, { setAuthToken } from "../utils/api";
+import API from "../utils/api";
 import { LoaderCircle } from "lucide-react";
 
 export default function GetStarted() {
@@ -18,7 +18,7 @@ export default function GetStarted() {
   // --- 2FA State ---
   const [show2fa, setShow2fa] = useState(false);
   const [twoFactorToken, setTwoFactorToken] = useState("");
-  const [userId, setUserId] = useState(null);
+  const [tempToken, setTempToken] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Message State
@@ -58,12 +58,10 @@ export default function GetStarted() {
       const res = await API.post("/auth/login", { email: loginEmail, password: loginPassword });
       
       if (res.status === 206 && res.data.twoFactorRequired) {
-        setUserId(res.data.userId);
+        setTempToken(res.data.tempToken);
         setShow2fa(true);
       } else {
-        const { token, user } = res.data;
-        localStorage.setItem("vaultxToken", token);
-        setAuthToken(token);
+        const { user } = res.data;
         setMessageType("success");
         setMessage(`Welcome back, ${user.username}!`);
         setTimeout(() => navigate("/dashboard"), 1000);
@@ -82,10 +80,8 @@ export default function GetStarted() {
     setMessage("");
     setIsLoading(true);
     try {
-        const res = await API.post("/auth/validate-2fa", { userId, token: twoFactorToken });
-        const { token, user } = res.data;
-        localStorage.setItem("vaultxToken", token);
-        setAuthToken(token);
+        const res = await API.post("/auth/validate-2fa", { tempToken, token: twoFactorToken });
+        const { user } = res.data;
         setMessageType("success");
         setMessage(`Welcome back, ${user.username}!`);
         setTimeout(() => navigate("/dashboard"), 1000);
@@ -102,9 +98,9 @@ export default function GetStarted() {
     setIsLogin(true);
     setShow2fa(false);
     setMessage("");
-    setUserId(null);
+    setTempToken(null);
     setTwoFactorToken("");
-  }
+  };
 
   // Determine a key for the form container to re-trigger animations on change
   const formKey = show2fa ? '2fa' : isLogin ? 'login' : 'signup';
