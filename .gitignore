@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+
+# Build outputs
+dist/
+build/
+
+# Logs
+*.log
+
+# OS & IDE metadata
+.DS_Store
+.vscode/
+.idea/
