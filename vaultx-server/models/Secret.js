@@ -6,6 +6,7 @@ const secretSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
     title: {
       type: String,
@@ -19,6 +20,10 @@ const secretSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    authTag: {
+      type: String,
+      default: null, // GCM authentication tag
+    },
     type: {
       type: String,
       enum: ["secret", "key", "password"],
@@ -27,10 +32,13 @@ const secretSchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      default: "", // optional, can hold additional notes about the secret
+      default: "",
     },
   },
   { timestamps: true }
 );
+
+// Compound index for optimized querying and sorting
+secretSchema.index({ userId: 1, createdAt: -1 });
 
 export default mongoose.model("Secret", secretSchema);
