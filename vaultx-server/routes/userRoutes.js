@@ -2,6 +2,8 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import { getUserProfile, changePassword } from "../controllers/userController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
+import { validateBody } from "../middleware/validation.js";
+import { changePasswordSchema } from "../utils/schemas.js";
 
 const router = express.Router();
 
@@ -17,6 +19,6 @@ const passwordLimiter = rateLimit({
 router.use(authMiddleware);
 
 router.get("/me", getUserProfile);
-router.put("/change-password", passwordLimiter, changePassword);
+router.put("/change-password", passwordLimiter, validateBody(changePasswordSchema), changePassword);
 
 export default router;

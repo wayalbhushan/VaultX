@@ -1,20 +1,19 @@
-
 import express from "express";
 import {
   generateTwoFactorSecret,
   verifyTwoFactorToken,
-  disableTwoFactor, // ✅ 1. Import the new disable function
+  disableTwoFactor,
 } from "../controllers/twoFactorController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
+import { validateBody } from "../middleware/validation.js";
+import { verify2faSchema, disable2faSchema } from "../utils/schemas.js";
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
 router.post("/generate", generateTwoFactorSecret);
-router.post("/verify", verifyTwoFactorToken);
-
-// ✅ 2. Add the new route for disabling 2FA
-router.post("/disable", disableTwoFactor);
+router.post("/verify", validateBody(verify2faSchema), verifyTwoFactorToken);
+router.post("/disable", validateBody(disable2faSchema), disableTwoFactor);
 
 export default router;

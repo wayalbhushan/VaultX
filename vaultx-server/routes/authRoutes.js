@@ -7,6 +7,8 @@ import {
   refreshSession,
   logoutUser,
 } from "../controllers/authController.js";
+import { validateBody } from "../middleware/validation.js";
+import { signupSchema, loginSchema, validate2faSchema } from "../utils/schemas.js";
 
 const router = express.Router();
 
@@ -19,9 +21,9 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-router.post("/signup", authLimiter, signupUser);
-router.post("/login", authLimiter, loginUser);
-router.post("/validate-2fa", authLimiter, validateLoginToken);
+router.post("/signup", authLimiter, validateBody(signupSchema), signupUser);
+router.post("/login", authLimiter, validateBody(loginSchema), loginUser);
+router.post("/validate-2fa", authLimiter, validateBody(validate2faSchema), validateLoginToken);
 router.post("/refresh", refreshSession);
 router.post("/logout", logoutUser);
 
