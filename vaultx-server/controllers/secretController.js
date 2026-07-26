@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
 import Secret from "../models/Secret.js";
-import Activity from "../models/Activity.js";
+import { recordActivity } from "./activityController.js";
 import { encrypt, decrypt } from "../utils/cryptoHelper.js";
 
 /**
- * @desc    Create a new secret
+ * @desc    Create a new secret (AES-256-GCM AEAD Encrypted)
  * @route   POST /api/secrets
  * @access  Private
  */
@@ -16,23 +16,21 @@ export const createSecret = async (req, res) => {
       return res.status(400).json({ message: "Title and data are required" });
     }
 
-    const { iv, encryptedData } = encrypt(data);
+    const { iv, encryptedData, authTag } = encrypt(data);
 
     const newSecret = new Secret({
       userId: req.user.id,
       title,
       encryptedData,
       iv,
+      authTag,
       type,
       description,
     });
 
     const savedSecret = await newSecret.save();
 
-    await Activity.create({
-      userId: req.user.id,
-      action: `Created new secret: "${title}"`,
-    });
+    await recordActivity(req.user.id, `Created new secret: "${title}"`);
 
     res.status(201).json(savedSecret);
   } catch (err) {
@@ -61,7 +59,7 @@ export const getAllSecrets = async (req, res) => {
 };
 
 /**
- * @desc    Get a single secret by ID (and decrypt it)
+ * @desc    Get a single secret by ID (and decrypt it with GCM auth tag check)
  * @route   GET /api/secrets/:id
  * @access  Private
  */
@@ -78,12 +76,10 @@ export const getSecretById = async (req, res) => {
       return res.status(404).json({ message: "Secret not found" });
     }
 
-    const decryptedData = decrypt(secret.encryptedData, secret.iv);
+    // Decrypt data verifying AEAD authentication tag
+    const decryptedData = decrypt(secret.encryptedData, secret.iv, secret.authTag);
 
-    await Activity.create({
-      userId: req.user.id,
-      action: `Viewed secret: "${secret.title}"`,
-    });
+    await recordActivity(req.user.id, `Viewed secret: "${secret.title}"`);
 
     res.status(200).json({
       _id: secret._id,
@@ -126,17 +122,15 @@ export const updateSecret = async (req, res) => {
     if (type) secret.type = type;
 
     if (data) {
-      const { iv, encryptedData } = encrypt(data);
+      const { iv, encryptedData, authTag } = encrypt(data);
       secret.iv = iv;
       secret.encryptedData = encryptedData;
+      secret.authTag = authTag;
     }
 
     const updatedSecret = await secret.save();
 
-    await Activity.create({
-      userId: req.user.id,
-      action: `Updated secret: "${updatedSecret.title}"`,
-    });
+    await recordActivity(req.user.id, `Updated secret: "${updatedSecret.title}"`);
 
     res.status(200).json(updatedSecret);
   } catch (err) {
@@ -163,10 +157,7 @@ export const deleteSecret = async (req, res) => {
       return res.status(404).json({ message: "Secret not found" });
     }
 
-    await Activity.create({
-      userId: req.user.id,
-      action: `Deleted secret: "${secret.title}"`,
-    });
+    await recordActivity(req.user.id, `Deleted secret: "${secret.title}"`);
 
     res.status(200).json({ message: "Secret deleted successfully" });
   } catch (err) {
