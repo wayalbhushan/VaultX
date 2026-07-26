@@ -47,6 +47,11 @@ export const createSecretSchema = z.object({
   data: z.string().min(1, "Secret data is required"),
   type: z.enum(["secret", "key", "password"]).default("secret"),
   description: z.string().max(500, "Description cannot exceed 500 characters").optional().default(""),
+  expiresAt: z.string().datetime().nullable().optional(),
+  rotationReminderDays: z.number().int().positive().nullable().optional(),
+  tags: z.array(z.string().trim()).optional().default([]),
+  folder: z.string().max(50, "Folder name cannot exceed 50 characters").optional().default(""),
+  isFavorite: z.boolean().optional().default(false),
 });
 
 // Secret Update Schema
@@ -55,6 +60,27 @@ export const updateSecretSchema = z.object({
   data: z.string().min(1, "Secret data cannot be empty").optional(),
   type: z.enum(["secret", "key", "password"]).optional(),
   description: z.string().max(500, "Description cannot exceed 500 characters").optional(),
+  expiresAt: z.string().datetime().nullable().optional(),
+  rotationReminderDays: z.number().int().positive().nullable().optional(),
+  tags: z.array(z.string().trim()).optional(),
+  folder: z.string().max(50, "Folder name cannot exceed 50 characters").optional(),
+  isFavorite: z.boolean().optional(),
+});
+
+// Export Vault Schema
+export const exportVaultSchema = z.object({
+  passphrase: z.string().min(6, "Export passphrase must be at least 6 characters long"),
+});
+
+// Import Vault Schema
+export const importVaultSchema = z.object({
+  passphrase: z.string().min(6, "Import passphrase must be at least 6 characters long"),
+  backupData: z.object({
+    salt: z.string().min(1),
+    iv: z.string().min(1),
+    authTag: z.string().min(1),
+    encryptedVault: z.string().min(1),
+  }),
 });
 
 // 2FA Enable Verification Schema
