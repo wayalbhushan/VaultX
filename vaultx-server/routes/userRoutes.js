@@ -1,6 +1,12 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
-import { getUserProfile, changePassword } from "../controllers/userController.js";
+import {
+  getUserProfile,
+  changePassword,
+  getActiveSessions,
+  revokeSession,
+  revokeOtherSessions,
+} from "../controllers/userController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import { validateBody } from "../middleware/validation.js";
 import { changePasswordSchema } from "../utils/schemas.js";
@@ -20,5 +26,10 @@ router.use(authMiddleware);
 
 router.get("/me", getUserProfile);
 router.put("/change-password", passwordLimiter, validateBody(changePasswordSchema), changePassword);
+
+// Session Management Endpoints
+router.get("/sessions", getActiveSessions);
+router.delete("/sessions/:sessionId", revokeSession);
+router.post("/sessions/revoke-others", revokeOtherSessions);
 
 export default router;
