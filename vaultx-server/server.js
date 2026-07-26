@@ -1,10 +1,9 @@
-// 📂 server.js
-
 import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import helmet from "helmet";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 
 // Route Imports
@@ -15,16 +14,35 @@ import activityRoutes from "./routes/activityRoutes.js";
 import twoFactorRoutes from "./routes/twoFactorRoutes.js";
 
 dotenv.config();
+
+// Assert MASTER_KEY exists
+const MASTER_KEY = process.env.MASTER_KEY;
+if (!MASTER_KEY || MASTER_KEY.length !== 64) {
+  throw new Error("CRITICAL: MASTER_KEY is missing or invalid in .env! Must be a 64-char hex string.");
+}
+
 const app = express();
 
-// Middleware
-app.use(express.json());
-app.use(helmet());
-app.use(cors());
+// Restrictive CORS configuration
+const allowedOrigin = process.env.CLIENT_URL || "http://localhost:5173";
 app.use(
+  cors({
+    origin: allowedOrigin,
+    credentials: true,
+  })
+);
+
+app.use(helmet());
+app.use(cookieParser());
+app.use(express.json());
+
+// Global Rate Limiter for API endpoints
+app.use(
+  "/api",
   rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 min
-    max: 100, // limit each IP
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: { error: "Too many requests from this IP, please try again later." },
   })
 );
 
@@ -33,8 +51,9 @@ app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/secrets", secretRoutes);
 app.use("/api/activity", activityRoutes);
-app.use("/api/2fa", twoFactorRoutes); 
-// DB + Server
+app.use("/api/2fa", twoFactorRoutes);
+
+// DB + Server Initialization
 const PORT = process.env.PORT || 5000;
 const URI = process.env.MONGO_URI;
 
@@ -47,9 +66,3 @@ mongoose
     });
   })
   .catch((err) => console.error("MongoDB error:", err.message));
-
-// Master Key Check (moved from original server.js for better placement)
-const MASTER_KEY = process.env.MASTER_KEY;
-if (!MASTER_KEY) {
-  throw new Error("MASTER_KEY is missing from .env!");
-}
