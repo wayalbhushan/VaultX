@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { NavLink, Link } from "react-router-dom";
-import { Menu, X } from "lucide-react"; // Icons for the mobile menu
+import { Menu, X, Shield, ArrowRight } from "lucide-react";
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Define styles for NavLink active state for cleaner code
   const navLinkClassName = ({ isActive }) =>
-    `relative text-green-300 hover:text-green-200 transition-colors duration-300 after:content-[''] after:absolute after:left-0 after:bottom-[-4px] after:h-[2px] after:w-full after:bg-green-400 after:scale-x-0 after:origin-left after:transition-transform after:duration-300 ${
-      isActive ? "after:scale-x-100 text-green-200" : "hover:after:scale-x-100"
+    `text-sm font-medium transition-colors duration-200 ${
+      isActive ? "text-emerald-400 font-semibold" : "text-slate-400 hover:text-slate-200"
     }`;
 
   const navLinks = [
@@ -17,11 +16,14 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-green-500/30 shadow-lg shadow-green-500/10">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <nav className="fixed top-0 left-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80">
+      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="text-green-400 font-bold text-2xl drop-shadow-[0_0_5px_rgba(0,255,0,0.7)] hover:text-green-300 transition-all">
-          VaultX
+        <Link to="/" className="flex items-center gap-2.5 group">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+            <Shield size={20} className="stroke-[2.5]" />
+          </div>
+          <span className="text-xl font-bold font-display tracking-tight text-white">VaultX</span>
         </Link>
 
         {/* Desktop Nav Links */}
@@ -33,32 +35,41 @@ export default function Navbar() {
           ))}
           <Link
             to="/get-started"
-            className="bg-green-500 text-black px-5 py-2 rounded-lg font-semibold hover:bg-green-400 transition-all duration-300 shadow-[0_0_10px_rgba(0,255,0,0.5)] hover:shadow-[0_0_20px_rgba(0,255,0,0.8)]"
+            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all active:scale-[0.98]"
           >
-            Get Started
+            <span>Get Started</span>
+            <ArrowRight size={14} />
           </Link>
         </div>
 
         {/* Mobile Menu Button */}
         <div className="md:hidden">
-          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-green-400">
-            {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 text-slate-400 hover:text-white rounded-lg bg-slate-900 border border-slate-800"
+          >
+            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </div>
 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-black/95 backdrop-blur-lg p-6 border-t border-green-500/30">
-          <div className="flex flex-col items-center space-y-6">
+        <div className="md:hidden bg-slate-950/95 backdrop-blur-xl p-6 border-b border-slate-800 space-y-4">
+          <div className="flex flex-col space-y-4">
             {navLinks.map((link) => (
-              <NavLink key={link.name} to={link.path} className={navLinkClassName} onClick={() => setIsMobileMenuOpen(false)}>
+              <NavLink
+                key={link.name}
+                to={link.path}
+                className={navLinkClassName}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
                 {link.name}
               </NavLink>
             ))}
             <Link
               to="/get-started"
-              className="bg-green-500 text-black w-full text-center px-5 py-3 rounded-lg font-semibold hover:bg-green-400 transition-all duration-300 shadow-[0_0_10px_rgba(0,255,0,0.5)]"
+              className="bg-emerald-500 text-slate-950 text-center px-4 py-2.5 rounded-xl font-semibold text-xs transition shadow-md shadow-emerald-500/20"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Get Started
