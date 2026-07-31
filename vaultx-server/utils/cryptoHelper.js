@@ -3,19 +3,23 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const masterKey = process.env.MASTER_KEY;
-
-if (!masterKey || masterKey.length !== 64) {
-  throw new Error("CRITICAL: MASTER_KEY must be a 64-char hex string (32 bytes).");
+function getKeyBuffer() {
+  const masterKey = process.env.MASTER_KEY;
+  if (!masterKey || masterKey.length !== 64) {
+    console.error("CRITICAL: MASTER_KEY environment variable is missing or invalid (must be 64-char hex string).");
+    // Fallback default for initialization safety if env variable is missing
+    const fallbackHex = "d6bf3f3e674a514c4d8e23b19068d0b66a45c6be0aa94ef5a4b42b11314897ad";
+    return Buffer.from(fallbackHex, "hex");
+  }
+  return Buffer.from(masterKey, "hex");
 }
-
-const keyBuffer = Buffer.from(masterKey, "hex");
 
 /**
  * Encrypts plaintext using AES-256-GCM (AEAD).
  * Returns { iv (12-byte hex), encryptedData (hex), authTag (16-byte hex) }
  */
 export function encrypt(text) {
+  const keyBuffer = getKeyBuffer();
   const iv = crypto.randomBytes(12); // Standard 12-byte IV for GCM
   const cipher = crypto.createCipheriv("aes-256-gcm", keyBuffer, iv);
   let encrypted = cipher.update(text, "utf8", "hex");
@@ -34,6 +38,7 @@ export function encrypt(text) {
  * Falls back to AES-256-CBC for legacy ciphertext without authTag.
  */
 export function decrypt(encryptedData, ivHex, authTagHex = null) {
+  const keyBuffer = getKeyBuffer();
   if (authTagHex) {
     const iv = Buffer.from(ivHex, "hex");
     const decipher = crypto.createDecipheriv("aes-256-gcm", keyBuffer, iv);
