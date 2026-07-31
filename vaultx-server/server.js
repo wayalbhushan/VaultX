@@ -18,16 +18,28 @@ dotenv.config();
 // Assert MASTER_KEY exists
 const MASTER_KEY = process.env.MASTER_KEY;
 if (!MASTER_KEY || MASTER_KEY.length !== 64) {
-  throw new Error("CRITICAL: MASTER_KEY is missing or invalid in .env! Must be a 64-char hex string.");
+  console.warn("WARNING: MASTER_KEY is missing or invalid in .env! Must be a 64-char hex string.");
 }
 
 const app = express();
 
-// Restrictive CORS configuration
-const allowedOrigin = process.env.CLIENT_URL || "http://localhost:5173";
+// Enable trust proxy for Vercel / reverse proxies
+app.set("trust proxy", 1);
+
+// Dynamic CORS configuration for Vercel & local dev
+const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
+  .split(",")
+  .map((o) => o.trim());
+
 app.use(
   cors({
-    origin: allowedOrigin,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes("*") || process.env.NODE_ENV !== "production") {
+        callback(null, true);
+      } else {
+        callback(null, true);
+      }
+    },
     credentials: true,
   })
 );
@@ -35,22 +47,13 @@ app.use(
 // Advanced Security Headers via Helmet
 app.use(
   helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:"],
-        objectSrc: ["'none'"],
-        frameAncestors: ["'none'"],
-      },
-    },
+    contentSecurityPolicy: false, // Disable CSP header on API server to prevent breaking cross-domain client requests
     hsts: {
       maxAge: 31536000,
       includeSubDomains: true,
       preload: true,
     },
-    referrerPolicy: { policy: "same-origin" },
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
     frameguard: { action: "deny" },
     noSniff: true,
   })
@@ -59,12 +62,40 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 
+// Serverless MongoDB Connection Middleware
+let isConnected = false;
+const connectDB = async (req, res, next) => {
+  if (isConnected && mongoose.connection.readyState === 1) {
+    return next();
+  }
+  try {
+    const URI = process.env.MONGO_URI;
+    if (!URI) {
+      return res.status(500).json({ error: "MONGO_URI environment variable is missing on server." });
+    }
+    await mongoose.connect(URI);
+    isConnected = true;
+    console.log("MongoDB connected successfully");
+    next();
+  } catch (err) {
+    console.error("MongoDB connection error:", err.message);
+    return res.status(500).json({ error: "Database connection failed. Please check MongoDB Atlas status." });
+  }
+};
+
+app.use(connectDB);
+
+// Health check endpoint
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", message: "VaultX API Server active", timestamp: new Date() });
+});
+
 // Global Rate Limiter for API endpoints
 app.use(
   "/api",
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 200,
     message: { error: "Too many requests from this IP, please try again later." },
   })
 );
@@ -76,16 +107,12 @@ app.use("/api/secrets", secretRoutes);
 app.use("/api/activity", activityRoutes);
 app.use("/api/2fa", twoFactorRoutes);
 
-// DB + Server Initialization
-const PORT = process.env.PORT || 5000;
-const URI = process.env.MONGO_URI;
+// Server Initialization for Local Dev
+if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
-mongoose
-  .connect(URI)
-  .then(() => {
-    console.log("MongoDB connected");
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  })
-  .catch((err) => console.error("MongoDB error:", err.message));
+export default app;

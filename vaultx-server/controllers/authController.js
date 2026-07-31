@@ -6,10 +6,12 @@ import User from "../models/user.js";
 import RefreshToken from "../models/RefreshToken.js";
 import { decrypt } from "../utils/cryptoHelper.js";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 const cookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "strict",
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
 };
 
 const generateTokensAndSetCookies = async (res, user, req) => {
@@ -47,8 +49,8 @@ const generateTokensAndSetCookies = async (res, user, req) => {
 
   res.cookie("csrfToken", csrfToken, {
     httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
@@ -100,83 +102,82 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials." });
     }
 
-    // 2FA Enforcement check
+    // 2FA Enforcement Check
     if (user.isTwoFactorEnabled) {
-      // Issue temporary 5-minute pre-auth token bound to 2FA scope
       const tempToken = jwt.sign(
         { id: user._id, stage: "2fa_pending" },
         process.env.JWT_SECRET,
         { expiresIn: "5m" }
       );
-
       return res.status(206).json({
-        message: "2FA authentication required.",
         twoFactorRequired: true,
         tempToken,
+        message: "2FA authentication code required.",
       });
     }
 
     const { csrfToken } = await generateTokensAndSetCookies(res, user, req);
 
     res.json({
-      message: "Logged in successfully",
-      user: { username: user.username, email: user.email },
+      message: "Login successful",
+      user: { id: user._id, username: user.username, email: user.email },
       csrfToken,
     });
   } catch (error) {
-    console.error("Login error:", error.message);
+    console.error("Login Error:", error.message);
     res.status(500).json({ error: "Server error during login." });
   }
 };
 
-export const validateLoginToken = async (req, res) => {
+export const validate2FALogin = async (req, res) => {
   try {
     const { tempToken, token } = req.body;
-
     if (!tempToken || !token) {
-      return res.status(401).json({ error: "Temporary 2FA token and TOTP code are required." });
+      return res.status(400).json({ error: "Temporary token and 2FA code are required." });
     }
 
     let decoded;
     try {
       decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
-    } catch (err) {
-      return res.status(401).json({ error: "Invalid or expired 2FA session token." });
+    } catch (e) {
+      return res.status(401).json({ error: "Temporary token expired or invalid." });
     }
 
     if (decoded.stage !== "2fa_pending") {
-      return res.status(401).json({ error: "Invalid 2FA session scope." });
+      return res.status(403).json({ error: "Invalid token stage." });
     }
 
     const user = await User.findById(decoded.id);
-    if (!user || !user.twoFactorSecret || !user.twoFactorSecret.encryptedData) {
-      return res.status(400).json({ error: "2FA is not properly configured for this user." });
+    if (!user || !user.twoFactorSecret) {
+      return res.status(400).json({ error: "User 2FA is not properly configured." });
     }
 
-    const decryptedSecret = decrypt(
+    const rawSecret = decrypt(
       user.twoFactorSecret.encryptedData,
-      user.twoFactorSecret.iv
+      user.twoFactorSecret.iv,
+      user.twoFactorSecret.authTag
     );
 
     const verified = speakeasy.totp.verify({
-      secret: decryptedSecret,
+      secret: rawSecret,
       encoding: "base32",
-      token: token,
+      token,
+      window: 1,
     });
 
     if (!verified) {
-      return res.status(401).json({ error: "Invalid 2FA code." });
+      return res.status(400).json({ error: "Invalid 2FA code." });
     }
 
     const { csrfToken } = await generateTokensAndSetCookies(res, user, req);
 
     res.json({
-      message: "2FA verification successful",
-      user: { username: user.username, email: user.email },
+      message: "2FA validation successful",
+      user: { id: user._id, username: user.username, email: user.email },
       csrfToken,
     });
   } catch (error) {
-    console.error("2FA Login Validation Error:", error.message);
+    console.error("2FA Validation Error:", error.message);
     res.status(500).json({ error: "Server error during 2FA validation." });
   }
 };
