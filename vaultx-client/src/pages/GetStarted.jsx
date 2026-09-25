@@ -52,13 +52,21 @@ export default function GetStarted() {
       setSignupPassword("");
       setSignupConfirm("");
     } catch (err) {
-      const errorDetails = err.response?.data?.details;
-      const errorMsg =
-        Array.isArray(errorDetails) && errorDetails.length > 0
-          ? errorDetails.map((d) => d.message).join(" • ")
-          : err.response?.data?.message ||
-            err.response?.data?.error ||
-            "Signup failed. Please check your details.";
+      let errorMsg;
+      if (!err.response) {
+        errorMsg =
+          err.message === "Network Error"
+            ? "Unable to connect to the backend server. Please verify backend is running and CORS is configured."
+            : err.message || "Failed to reach server.";
+      } else {
+        const errorDetails = err.response?.data?.details;
+        errorMsg =
+          Array.isArray(errorDetails) && errorDetails.length > 0
+            ? errorDetails.map((d) => d.message).join(" • ")
+            : err.response?.data?.error ||
+              err.response?.data?.message ||
+              "Signup failed. Please check your details.";
+      }
       setMessageType("error");
       setMessage(errorMsg);
     } finally {
@@ -87,8 +95,16 @@ export default function GetStarted() {
         setTimeout(() => navigate("/dashboard"), 800);
       }
     } catch (err) {
-      const errorMsg =
-        err.response?.data?.message || err.response?.data?.error || "Invalid credentials.";
+      let errorMsg;
+      if (!err.response) {
+        errorMsg =
+          err.message === "Network Error"
+            ? "Unable to connect to the backend server. Please check your connection."
+            : err.message || "Failed to reach server.";
+      } else {
+        errorMsg =
+          err.response?.data?.error || err.response?.data?.message || "Invalid credentials.";
+      }
       setMessageType("error");
       setMessage(errorMsg);
     } finally {
