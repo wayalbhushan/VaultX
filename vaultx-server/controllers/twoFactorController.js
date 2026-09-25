@@ -26,6 +26,7 @@ export const generateTwoFactorSecret = async (req, res) => {
     user.twoFactorSecret = {
       encryptedData: encryptedSecret.encryptedData,
       iv: encryptedSecret.iv,
+      authTag: encryptedSecret.authTag,
     };
     await user.save();
 
@@ -51,14 +52,22 @@ export const verifyTwoFactorToken = async (req, res) => {
   try {
     const { token } = req.body;
     const user = await User.findById(req.user.id);
-    if (!user || !user.twoFactorSecret || !user.twoFactorSecret.encryptedData) {
+    if (!user || !user.twoFactorSecret) {
       return res.status(400).json({ message: "2FA not set up or user not found" });
     }
 
-    const decryptedSecret = decrypt(
-      user.twoFactorSecret.encryptedData,
-      user.twoFactorSecret.iv
-    );
+    let decryptedSecret;
+    if (typeof user.twoFactorSecret === "string") {
+      decryptedSecret = user.twoFactorSecret;
+    } else if (user.twoFactorSecret.encryptedData) {
+      decryptedSecret = decrypt(
+        user.twoFactorSecret.encryptedData,
+        user.twoFactorSecret.iv,
+        user.twoFactorSecret.authTag
+      );
+    } else {
+      return res.status(400).json({ message: "Invalid 2FA secret format" });
+    }
 
     const verified = speakeasy.totp.verify({
       secret: decryptedSecret,

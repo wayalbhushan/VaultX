@@ -152,11 +152,24 @@ export const validate2FALogin = async (req, res) => {
       return res.status(400).json({ error: "User 2FA is not properly configured." });
     }
 
-    const rawSecret = decrypt(
-      user.twoFactorSecret.encryptedData,
-      user.twoFactorSecret.iv,
-      user.twoFactorSecret.authTag
-    );
+    let rawSecret;
+    if (typeof user.twoFactorSecret === "string") {
+      // Legacy unencrypted base32 secret
+      rawSecret = user.twoFactorSecret;
+    } else if (user.twoFactorSecret?.encryptedData) {
+      try {
+        rawSecret = decrypt(
+          user.twoFactorSecret.encryptedData,
+          user.twoFactorSecret.iv,
+          user.twoFactorSecret.authTag
+        );
+      } catch (decErr) {
+        console.error("2FA Secret Decryption Error:", decErr.message);
+        return res.status(500).json({ error: "Failed to decrypt two-factor secret." });
+      }
+    } else {
+      return res.status(400).json({ error: "User 2FA secret is invalid or missing." });
+    }
 
     const verified = speakeasy.totp.verify({
       secret: rawSecret,
@@ -169,6 +182,21 @@ export const validate2FALogin = async (req, res) => {
       return res.status(400).json({ error: "Invalid 2FA code." });
     }
 
+    // If user has a legacy unencrypted secret, upgrade it to AES-256-GCM encryption in background
+    if (typeof user.twoFactorSecret === "string") {
+      try {
+        const encrypted = encrypt(rawSecret);
+        user.twoFactorSecret = {
+          encryptedData: encrypted.encryptedData,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+        };
+        await user.save();
+      } catch (upgErr) {
+        console.warn("Could not upgrade legacy 2FA secret:", upgErr.message);
+      }
+    }
+
     const { csrfToken } = await generateTokensAndSetCookies(res, user, req);
 
     res.json({
@@ -178,7 +206,7 @@ export const validate2FALogin = async (req, res) => {
     });
   } catch (error) {
     console.error("2FA Validation Error:", error.message);
-    res.status(500).json({ error: "Server error during 2FA validation." });
+    res.status(500).json({ error: error.message || "Server error during 2FA validation." });
   }
 };
 

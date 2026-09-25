@@ -13,11 +13,10 @@ const userSchema = new mongoose.Schema({
     default: false,
   },
   twoFactorSecret: {
-    encryptedData: { type: String, default: null },
-    iv: { type: String, default: null },
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
   },
 
 }, { timestamps: true });
 
 export default mongoose.model("User", userSchema);
-
