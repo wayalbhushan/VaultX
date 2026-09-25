@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit";
 import {
   signupUser,
   loginUser,
-  validateLoginToken,
+  validate2FALogin,
   refreshSession,
   logoutUser,
 } from "../controllers/authController.js";
@@ -23,7 +23,7 @@ const authLimiter = rateLimit({
 
 router.post("/signup", authLimiter, validateBody(signupSchema), signupUser);
 router.post("/login", authLimiter, validateBody(loginSchema), loginUser);
-router.post("/validate-2fa", authLimiter, validateBody(validate2faSchema), validateLoginToken);
+router.post("/validate-2fa", authLimiter, validateBody(validate2faSchema), validate2FALogin);
 router.post("/refresh", refreshSession);
 router.post("/logout", logoutUser);
 
